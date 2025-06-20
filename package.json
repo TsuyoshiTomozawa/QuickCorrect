@@ -1,0 +1,101 @@
+{
+  "name": "quickcorrect",
+  "version": "0.1.0",
+  "description": "AI-powered Japanese text correction desktop app with one-click workflow",
+  "main": "dist/main/main.js",
+  "homepage": "https://github.com/TsuyoshiTomozawa/QuickCorrect",
+  "author": {
+    "name": "Tsuyoshi Tomozawa",
+    "email": "your-email@example.com"
+  },
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "webpack serve --config webpack.renderer.config.js",
+    "dev:main": "webpack --config webpack.main.config.js --watch",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
+    "build:main": "webpack --config webpack.main.config.js --mode production",
+    "start": "electron dist/main/main.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "test": "jest",
+    "lint": "eslint src/**/*.{js,jsx,ts,tsx}",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,css,scss}"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "openai": "^4.52.1",
+    "@anthropic-ai/sdk": "^0.24.3",
+    "sqlite3": "^5.1.6",
+    "node-global-key-listener": "^0.1.1",
+    "clipboardy": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.23.1",
+    "styled-components": "^6.1.11",
+    "framer-motion": "^11.2.10"
+  },
+  "devDependencies": {
+    "electron": "^30.1.2",
+    "electron-builder": "^24.13.3",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.4",
+    "html-webpack-plugin": "^5.6.0",
+    "babel-loader": "^9.1.3",
+    "@babel/core": "^7.24.7",
+    "@babel/preset-env": "^7.24.7",
+    "@babel/preset-react": "^7.24.7",
+    "@babel/preset-typescript": "^7.24.7",
+    "typescript": "^5.4.5",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/node": "^20.14.2",
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0",
+    "concurrently": "^8.2.2",
+    "jest": "^29.7.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.2"
+  },
+  "build": {
+    "appId": "com.quickcorrect.app",
+    "productName": "QuickCorrect",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "keywords": [
+    "japanese",
+    "text-correction",
+    "ai",
+    "electron",
+    "desktop-app",
+    "productivity",
+    "writing",
+    "gpt",
+    "claude"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TsuyoshiTomozawa/QuickCorrect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TsuyoshiTomozawa/QuickCorrect/issues"
+  }
+}
