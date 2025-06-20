@@ -14,25 +14,33 @@ import * as path from 'path';
 import { HotkeyController } from '../controllers/HotkeyController';
 import { CorrectionController } from '../controllers/CorrectionController';
 import { ClipboardController } from '../controllers/ClipboardController';
+import { initializeIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
+import { SettingsManager } from './settings/SettingsManager';
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
 let hotkeyController: HotkeyController;
 let correctionController: CorrectionController;
 let clipboardController: ClipboardController;
+let settingsManager: SettingsManager;
 
 /**
  * Create the main application window
  */
-function createWindow(): void {
+async function createWindow(): Promise<void> {
+  // Load settings
+  settingsManager = new SettingsManager(app.getPath('userData'));
+  const settings = await settingsManager.getSettings();
+
   // Create the browser window
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 500,
+    width: settings.windowSettings.size.width,
+    height: settings.windowSettings.size.height,
     minWidth: 600,
     minHeight: 400,
     show: false, // Don't show until ready
-    alwaysOnTop: true,
+    alwaysOnTop: settings.windowSettings.alwaysOnTop,
+    opacity: settings.windowSettings.opacity,
     frame: true,
     titleBarStyle: 'default',
     webPreferences: {
@@ -43,6 +51,14 @@ function createWindow(): void {
     },
     icon: path.join(__dirname, '../../assets/icon.png') // Add app icon
   });
+
+  // Restore window position if saved
+  if (settings.windowSettings.position.x !== -1 && settings.windowSettings.position.y !== -1) {
+    mainWindow.setPosition(
+      settings.windowSettings.position.x,
+      settings.windowSettings.position.y
+    );
+  }
 
   // Load the app
   if (process.env.NODE_ENV === 'development') {
@@ -61,6 +77,28 @@ function createWindow(): void {
       if (process.platform === 'darwin') {
         mainWindow.focus();
       }
+    }
+  });
+
+  // Save window position on move
+  mainWindow.on('moved', () => {
+    if (mainWindow) {
+      const [x, y] = mainWindow.getPosition();
+      settingsManager.setSetting('windowSettings', {
+        ...settings.windowSettings,
+        position: { x, y }
+      });
+    }
+  });
+
+  // Save window size on resize
+  mainWindow.on('resized', () => {
+    if (mainWindow) {
+      const [width, height] = mainWindow.getSize();
+      settingsManager.setSetting('windowSettings', {
+        ...settings.windowSettings,
+        size: { width, height }
+      });
     }
   });
 
@@ -85,10 +123,34 @@ function initializeControllers(): void {
   correctionController = new CorrectionController();
   clipboardController = new ClipboardController();
 
-  // Register global hotkey
+  // Register global hotkey using hotkeyController
   hotkeyController.registerHotkey('CommandOrControl+T', () => {
     showWindowWithSelectedText();
   });
+}
+
+/**
+ * Initialize application
+ */
+async function initializeApp(): Promise<void> {
+  // Initialize controllers
+  initializeControllers();
+  
+  // Initialize IPC handlers (includes Model layer integration)
+  await initializeIPCHandlers();
+
+  // Setup additional IPC handlers for controllers
+  setupControllerIPC();
+
+  // Register global hotkey based on settings
+  const settings = await settingsManager.getSettings();
+  if (settings.hotkey && settings.hotkey !== 'CommandOrControl+T') {
+    // Update hotkey if different from default
+    hotkeyController.unregisterHotkey('CommandOrControl+T');
+    hotkeyController.registerHotkey(settings.hotkey, () => {
+      showWindowWithSelectedText();
+    });
+  }
 }
 
 /**
@@ -96,10 +158,10 @@ function initializeControllers(): void {
  */
 async function showWindowWithSelectedText(): Promise<void> {
   try {
-    // Get selected text from clipboard
+    // Get selected text from clipboard controller
     const selectedText = await clipboardController.getSelectedText();
     
-    if (selectedText) {
+    if (selectedText && selectedText.trim()) {
       // Show window if hidden
       if (mainWindow) {
         if (!mainWindow.isVisible()) {
@@ -109,6 +171,12 @@ async function showWindowWithSelectedText(): Promise<void> {
         
         // Send selected text to renderer
         mainWindow.webContents.send('text-selected', selectedText);
+      } else {
+        // Create window if it doesn't exist
+        await createWindow();
+        mainWindow?.webContents.once('did-finish-load', () => {
+          mainWindow?.webContents.send('text-selected', selectedText);
+        });
       }
     }
   } catch (error) {
@@ -117,10 +185,10 @@ async function showWindowWithSelectedText(): Promise<void> {
 }
 
 /**
- * Setup IPC handlers
+ * Setup IPC handlers for controllers
  */
-function setupIPC(): void {
-  // Handle text correction request
+function setupControllerIPC(): void {
+  // Handle text correction request through controller
   ipcMain.handle('correct-text', async (event, text: string, mode: string) => {
     try {
       const correctedText = await correctionController.correctText(text, mode as any);
@@ -135,73 +203,6 @@ function setupIPC(): void {
     }
   });
 
-  // Handle settings requests
-  ipcMain.handle('get-settings', async () => {
-    // TODO: Implement settings retrieval from storage
-    return {
-      apiKeys: {},
-      defaultMode: 'business',
-      hotkey: 'CommandOrControl+T',
-      autoCorrect: false,
-      autoCopy: true,
-      windowSettings: {
-        alwaysOnTop: true,
-        opacity: 1,
-        position: { x: 0, y: 0 },
-        size: { width: 800, height: 500 }
-      },
-      aiSettings: {
-        primaryProvider: 'openai' as const,
-        temperature: 0.7,
-        maxTokens: 2000,
-        timeout: 30000
-      },
-      privacy: {
-        saveHistory: true,
-        analyticsEnabled: false
-      }
-    };
-  });
-
-  ipcMain.handle('save-settings', async (event, settings) => {
-    // TODO: Implement settings saving to storage
-    return true;
-  });
-
-  // Handle history requests
-  ipcMain.handle('get-history', async (event, limit?: number) => {
-    // TODO: Implement history retrieval from database
-    return [];
-  });
-
-  ipcMain.handle('save-to-history', async (event, history) => {
-    // TODO: Implement history saving to database
-    return true;
-  });
-
-  ipcMain.handle('delete-history', async (event, id: string) => {
-    // TODO: Implement history deletion
-    return true;
-  });
-
-  ipcMain.handle('clear-history', async () => {
-    // TODO: Implement history clearing
-    return true;
-  });
-
-  // Handle window control
-  ipcMain.handle('hide-window', () => {
-    mainWindow?.hide();
-  });
-
-  ipcMain.handle('minimize-window', () => {
-    mainWindow?.minimize();
-  });
-
-  ipcMain.handle('close-window', () => {
-    mainWindow?.close();
-  });
-
   // Handle clipboard operations
   ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
     return await clipboardController.copyToClipboard(text);
@@ -211,28 +212,8 @@ function setupIPC(): void {
     return await clipboardController.getClipboardText();
   });
 
-  // Handle system info
-  ipcMain.handle('get-system-info', async () => {
-    return {
-      platform: process.platform as any,
-      version: process.version,
-      arch: process.arch,
-      memory: {
-        total: process.memoryUsage().heapTotal,
-        used: process.memoryUsage().heapUsed
-      }
-    };
-  });
-
-  ipcMain.handle('check-permissions', async () => {
-    // TODO: Implement actual permission checking
-    return {
-      accessibility: true,
-      microphone: false,
-      camera: false,
-      notifications: true
-    };
-  });
+  // Settings are handled by SettingsManager through the IPC handlers
+  // History and other features are handled by the Model layer through IPC handlers
 }
 
 /**
@@ -240,10 +221,9 @@ function setupIPC(): void {
  */
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
-  createWindow();
-  initializeControllers();
-  setupIPC();
+app.whenReady().then(async () => {
+  await createWindow();
+  await initializeApp();
 
   // On macOS, re-create window when dock icon is clicked
   app.on('activate', () => {
@@ -262,9 +242,17 @@ app.on('window-all-closed', () => {
 });
 
 // Clean up before quitting
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   // Unregister all global shortcuts
   globalShortcut.unregisterAll();
+  
+  // Clean up controllers
+  hotkeyController?.destroy();
+  correctionController?.destroy();
+  clipboardController?.destroy();
+  
+  // Cleanup IPC handlers
+  await cleanupIPCHandlers();
 });
 
 // Handle app activation (macOS)
