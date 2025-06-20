@@ -1,1 +1,287 @@
-/**\n * QuickCorrect - Main Process Entry Point\n * \n * This file serves as the main entry point for the Electron application.\n * It handles:\n * - Application lifecycle management\n * - Window creation and management\n * - Global hotkey registration\n * - IPC communication setup\n */\n\nimport { app, BrowserWindow, globalShortcut, ipcMain } from 'electron';\nimport * as path from 'path';\nimport { HotkeyController } from '../controllers/HotkeyController';\nimport { CorrectionController } from '../controllers/CorrectionController';\nimport { ClipboardController } from '../controllers/ClipboardController';\n\n// Keep a global reference of the window object\nlet mainWindow: BrowserWindow | null = null;\nlet hotkeyController: HotkeyController;\nlet correctionController: CorrectionController;\nlet clipboardController: ClipboardController;\n\n/**\n * Create the main application window\n */\nfunction createWindow(): void {\n  // Create the browser window\n  mainWindow = new BrowserWindow({\n    width: 800,\n    height: 500,\n    minWidth: 600,\n    minHeight: 400,\n    show: false, // Don't show until ready\n    alwaysOnTop: true,\n    frame: true,\n    titleBarStyle: 'default',\n    webPreferences: {\n      nodeIntegration: false,\n      contextIsolation: true,\n      preload: path.join(__dirname, '../preload/preload.js'),\n      webSecurity: true\n    },\n    icon: path.join(__dirname, '../../assets/icon.png') // Add app icon\n  });\n\n  // Load the app\n  if (process.env.NODE_ENV === 'development') {\n    mainWindow.loadURL('http://localhost:3000');\n    mainWindow.webContents.openDevTools();\n  } else {\n    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));\n  }\n\n  // Show window when ready to prevent visual flash\n  mainWindow.once('ready-to-show', () => {\n    if (mainWindow) {\n      mainWindow.show();\n      \n      // Focus the window if it was triggered by hotkey\n      if (process.platform === 'darwin') {\n        mainWindow.focus();\n      }\n    }\n  });\n\n  // Handle window closed\n  mainWindow.on('closed', () => {\n    mainWindow = null;\n  });\n\n  // Handle window minimize (hide instead of minimize for better UX)\n  mainWindow.on('minimize', (event) => {\n    event.preventDefault();\n    mainWindow?.hide();\n  });\n}\n\n/**\n * Initialize application controllers\n */\nfunction initializeControllers(): void {\n  // Initialize controllers\n  hotkeyController = new HotkeyController();\n  correctionController = new CorrectionController();\n  clipboardController = new ClipboardController();\n\n  // Register global hotkey\n  hotkeyController.registerHotkey('CommandOrControl+T', () => {\n    showWindowWithSelectedText();\n  });\n}\n\n/**\n * Show window and process selected text\n */\nasync function showWindowWithSelectedText(): Promise<void> {\n  try {\n    // Get selected text from clipboard\n    const selectedText = await clipboardController.getSelectedText();\n    \n    if (selectedText) {\n      // Show window if hidden\n      if (mainWindow) {\n        if (!mainWindow.isVisible()) {\n          mainWindow.show();\n        }\n        mainWindow.focus();\n        \n        // Send selected text to renderer\n        mainWindow.webContents.send('text-selected', selectedText);\n      }\n    }\n  } catch (error) {\n    console.error('Error processing selected text:', error);\n  }\n}\n\n/**\n * Setup IPC handlers\n */\nfunction setupIPC(): void {\n  // Handle text correction request\n  ipcMain.handle('correct-text', async (event, text: string, mode: string) => {\n    try {\n      const correctedText = await correctionController.correctText(text, mode);\n      \n      // Auto-copy to clipboard\n      await clipboardController.copyToClipboard(correctedText.text);\n      \n      return correctedText;\n    } catch (error) {\n      console.error('Text correction error:', error);\n      throw error;\n    }\n  });\n\n  // Handle settings requests\n  ipcMain.handle('get-settings', async () => {\n    // TODO: Implement settings retrieval\n    return {};\n  });\n\n  ipcMain.handle('save-settings', async (event, settings) => {\n    // TODO: Implement settings saving\n    return true;\n  });\n\n  // Handle window control\n  ipcMain.handle('hide-window', () => {\n    mainWindow?.hide();\n  });\n\n  ipcMain.handle('minimize-window', () => {\n    mainWindow?.minimize();\n  });\n\n  ipcMain.handle('close-window', () => {\n    mainWindow?.close();\n  });\n}\n\n/**\n * App event handlers\n */\n\n// This method will be called when Electron has finished initialization\napp.whenReady().then(() => {\n  createWindow();\n  initializeControllers();\n  setupIPC();\n\n  // On macOS, re-create window when dock icon is clicked\n  app.on('activate', () => {\n    if (BrowserWindow.getAllWindows().length === 0) {\n      createWindow();\n    }\n  });\n});\n\n// Quit when all windows are closed\napp.on('window-all-closed', () => {\n  // On macOS, keep app running even when all windows are closed\n  if (process.platform !== 'darwin') {\n    app.quit();\n  }\n});\n\n// Clean up before quitting\napp.on('before-quit', () => {\n  // Unregister all global shortcuts\n  globalShortcut.unregisterAll();\n});\n\n// Handle app activation (macOS)\napp.on('activate', () => {\n  if (mainWindow === null) {\n    createWindow();\n  } else {\n    mainWindow.show();\n  }\n});\n\n// Security: Prevent new window creation\napp.on('web-contents-created', (event, contents) => {\n  contents.on('new-window', (event, navigationUrl) => {\n    event.preventDefault();\n    console.log('Prevented new window:', navigationUrl);\n  });\n});\n\nexport { mainWindow };
+/**
+ * QuickCorrect - Main Process Entry Point
+ * 
+ * This file serves as the main entry point for the Electron application.
+ * It handles:
+ * - Application lifecycle management
+ * - Window creation and management
+ * - Global hotkey registration
+ * - IPC communication setup
+ */
+
+import { app, BrowserWindow, globalShortcut, ipcMain } from 'electron';
+import * as path from 'path';
+import { HotkeyController } from '../controllers/HotkeyController';
+import { CorrectionController } from '../controllers/CorrectionController';
+import { ClipboardController } from '../controllers/ClipboardController';
+
+// Keep a global reference of the window object
+let mainWindow: BrowserWindow | null = null;
+let hotkeyController: HotkeyController;
+let correctionController: CorrectionController;
+let clipboardController: ClipboardController;
+
+/**
+ * Create the main application window
+ */
+function createWindow(): void {
+  // Create the browser window
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 500,
+    minWidth: 600,
+    minHeight: 400,
+    show: false, // Don't show until ready
+    alwaysOnTop: true,
+    frame: true,
+    titleBarStyle: 'default',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, '../preload/preload.js'),
+      webSecurity: true
+    },
+    icon: path.join(__dirname, '../../assets/icon.png') // Add app icon
+  });
+
+  // Load the app
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  }
+
+  // Show window when ready to prevent visual flash
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      
+      // Focus the window if it was triggered by hotkey
+      if (process.platform === 'darwin') {
+        mainWindow.focus();
+      }
+    }
+  });
+
+  // Handle window closed
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  // Handle window minimize (hide instead of minimize for better UX)
+  mainWindow.on('minimize', (event) => {
+    event.preventDefault();
+    mainWindow?.hide();
+  });
+}
+
+/**
+ * Initialize application controllers
+ */
+function initializeControllers(): void {
+  // Initialize controllers
+  hotkeyController = new HotkeyController();
+  correctionController = new CorrectionController();
+  clipboardController = new ClipboardController();
+
+  // Register global hotkey
+  hotkeyController.registerHotkey('CommandOrControl+T', () => {
+    showWindowWithSelectedText();
+  });
+}
+
+/**
+ * Show window and process selected text
+ */
+async function showWindowWithSelectedText(): Promise<void> {
+  try {
+    // Get selected text from clipboard
+    const selectedText = await clipboardController.getSelectedText();
+    
+    if (selectedText) {
+      // Show window if hidden
+      if (mainWindow) {
+        if (!mainWindow.isVisible()) {
+          mainWindow.show();
+        }
+        mainWindow.focus();
+        
+        // Send selected text to renderer
+        mainWindow.webContents.send('text-selected', selectedText);
+      }
+    }
+  } catch (error) {
+    console.error('Error processing selected text:', error);
+  }
+}
+
+/**
+ * Setup IPC handlers
+ */
+function setupIPC(): void {
+  // Handle text correction request
+  ipcMain.handle('correct-text', async (event, text: string, mode: string) => {
+    try {
+      const correctedText = await correctionController.correctText(text, mode as any);
+      
+      // Auto-copy to clipboard
+      await clipboardController.copyToClipboard(correctedText.text);
+      
+      return correctedText;
+    } catch (error) {
+      console.error('Text correction error:', error);
+      throw error;
+    }
+  });
+
+  // Handle settings requests
+  ipcMain.handle('get-settings', async () => {
+    // TODO: Implement settings retrieval from storage
+    return {
+      apiKeys: {},
+      defaultMode: 'business',
+      hotkey: 'CommandOrControl+T',
+      autoCorrect: false,
+      autoCopy: true,
+      windowSettings: {
+        alwaysOnTop: true,
+        opacity: 1,
+        position: { x: 0, y: 0 },
+        size: { width: 800, height: 500 }
+      },
+      aiSettings: {
+        primaryProvider: 'openai' as const,
+        temperature: 0.7,
+        maxTokens: 2000,
+        timeout: 30000
+      },
+      privacy: {
+        saveHistory: true,
+        analyticsEnabled: false
+      }
+    };
+  });
+
+  ipcMain.handle('save-settings', async (event, settings) => {
+    // TODO: Implement settings saving to storage
+    return true;
+  });
+
+  // Handle history requests
+  ipcMain.handle('get-history', async (event, limit?: number) => {
+    // TODO: Implement history retrieval from database
+    return [];
+  });
+
+  ipcMain.handle('save-to-history', async (event, history) => {
+    // TODO: Implement history saving to database
+    return true;
+  });
+
+  ipcMain.handle('delete-history', async (event, id: string) => {
+    // TODO: Implement history deletion
+    return true;
+  });
+
+  ipcMain.handle('clear-history', async () => {
+    // TODO: Implement history clearing
+    return true;
+  });
+
+  // Handle window control
+  ipcMain.handle('hide-window', () => {
+    mainWindow?.hide();
+  });
+
+  ipcMain.handle('minimize-window', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle('close-window', () => {
+    mainWindow?.close();
+  });
+
+  // Handle clipboard operations
+  ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
+    return await clipboardController.copyToClipboard(text);
+  });
+
+  ipcMain.handle('get-clipboard-text', async () => {
+    return await clipboardController.getClipboardText();
+  });
+
+  // Handle system info
+  ipcMain.handle('get-system-info', async () => {
+    return {
+      platform: process.platform as any,
+      version: process.version,
+      arch: process.arch,
+      memory: {
+        total: process.memoryUsage().heapTotal,
+        used: process.memoryUsage().heapUsed
+      }
+    };
+  });
+
+  ipcMain.handle('check-permissions', async () => {
+    // TODO: Implement actual permission checking
+    return {
+      accessibility: true,
+      microphone: false,
+      camera: false,
+      notifications: true
+    };
+  });
+}
+
+/**
+ * App event handlers
+ */
+
+// This method will be called when Electron has finished initialization
+app.whenReady().then(() => {
+  createWindow();
+  initializeControllers();
+  setupIPC();
+
+  // On macOS, re-create window when dock icon is clicked
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+// Quit when all windows are closed
+app.on('window-all-closed', () => {
+  // On macOS, keep app running even when all windows are closed
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// Clean up before quitting
+app.on('before-quit', () => {
+  // Unregister all global shortcuts
+  globalShortcut.unregisterAll();
+});
+
+// Handle app activation (macOS)
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createWindow();
+  } else {
+    mainWindow.show();
+  }
+});
+
+// Security: Prevent new window creation
+app.on('web-contents-created', (event, contents) => {
+  contents.on('new-window', (event, navigationUrl) => {
+    event.preventDefault();
+    console.log('Prevented new window:', navigationUrl);
+  });
+});
+
+export { mainWindow };
