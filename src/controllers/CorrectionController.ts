@@ -1,83 +1,102 @@
 /**
- * CorrectionController - 添削処理フロー制御
+ * CorrectionController - 統合版添削処理制御
  * 
- * Issue #4: 添削処理フローの実装
- * - AI APIとの連携管理
- * - 添削モード切り替え
- * - エラーハンドリングとリトライ機能
- * - 処理結果の履歴保存連携
+ * EventBusと連携して添削ワークフローを管理
  */
 
-import { EventEmitter } from 'events';
+import { eventBus, EventType } from '../services/EventBus';
 import { 
   CorrectionResult, 
   CorrectionMode, 
-  AppSettings, 
   ErrorCode,
-  CorrectionChange,
-  APIProvider
+  CorrectionChange 
 } from '../types/interfaces';
-import { hotkeyController, HotkeyEvent } from './HotkeyController';
-import { clipboardController } from './ClipboardController';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface CorrectionRequest {
-  text: string;
-  mode: CorrectionMode;
-  provider?: 'openai' | 'anthropic' | 'google';
-  options?: {
-    temperature?: number;
-    maxTokens?: number;
-    systemPrompt?: string;
-  };
-}
-
-export interface CorrectionOptions {
-  autoCorrect: boolean;
-  autoCopy: boolean;
-  saveHistory: boolean;
-  retryAttempts: number;
-  retryDelay: number;
-}
-
-export interface AIProviderInterface {
+// AI Providerインターフェース
+export interface AIProvider {
   name: string;
   correctText(text: string, mode: CorrectionMode, options?: any): Promise<CorrectionResult>;
   isAvailable(): boolean;
 }
 
-export class CorrectionController extends EventEmitter {
-  private providers: Map<string, AIProviderInterface> = new Map();
+// 添削リクエスト
+export interface CorrectionRequest {
+  id: string;
+  text: string;
+  mode: CorrectionMode;
+  provider?: string;
+  timestamp: Date;
+  retryCount: number;
+}
+
+export class CorrectionController {
+  private providers: Map<string, AIProvider> = new Map();
+  private activeRequests: Map<string, CorrectionRequest> = new Map();
   private currentMode: CorrectionMode = 'business';
-  private isProcessing: boolean = false;
-  private options: CorrectionOptions;
-  private settings: AppSettings | null = null;
+  private options = {
+    autoCorrect: true,
+    autoCopy: true,
+    saveHistory: true,
+    retryAttempts: 3,
+    retryDelay: 1000,
+    timeout: 30000
+  };
   
-  constructor(options: Partial<CorrectionOptions> = {}) {
-    super();
-    
-    this.options = {
-      autoCorrect: true,
-      autoCopy: true,
-      saveHistory: true,
-      retryAttempts: 3,
-      retryDelay: 1000,
-      ...options
-    };
-    
+  constructor() {
     this.setupEventListeners();
+    this.setupWorkflow();
   }
 
   /**
    * イベントリスナーの設定
    */
   private setupEventListeners(): void {
-    // ホットキーイベントを監視
-    hotkeyController.on('hotkey-pressed', async (event: HotkeyEvent) => {
-      if (this.options.autoCorrect && !this.isProcessing) {
-        await this.correctText({
-          text: event.selectedText,
-          mode: this.currentMode
+    // テキスト選択イベントを監視
+    eventBus.on(EventType.TEXT_SELECTED, async (payload) => {
+      if (this.options.autoCorrect) {
+        await this.startCorrection(payload.text, this.currentMode);
+      }
+    });
+
+    // 設定変更イベントを監視
+    eventBus.on(EventType.SETTINGS_CHANGED, (payload) => {
+      if (payload.correction) {
+        this.updateOptions(payload.correction);
+      }
+      if (payload.defaultMode) {
+        this.currentMode = payload.defaultMode;
+      }
+    });
+  }
+
+  /**
+   * ワークフローの設定
+   */
+  private setupWorkflow(): void {
+    // 添削開始 → プロバイダー選択 → API呼び出し → 結果処理 → 完了通知
+    
+    eventBus.on(EventType.CORRECTION_STARTED, async (payload) => {
+      const request = this.activeRequests.get(payload.requestId);
+      if (!request) return;
+      
+      try {
+        // プロバイダーの選択と実行
+        const result = await this.executeCorrection(request);
+        
+        // 成功イベントを発行
+        eventBus.emit(EventType.CORRECTION_COMPLETED, {
+          result,
+          requestId: request.id,
+          duration: Date.now() - request.timestamp.getTime()
         });
+        
+      } catch (error) {
+        // エラーハンドリング
+        await this.handleCorrectionError(request, error);
+      } finally {
+        // リクエストをクリーンアップ
+        this.activeRequests.delete(request.id);
       }
     });
   }
@@ -85,234 +104,186 @@ export class CorrectionController extends EventEmitter {
   /**
    * AIプロバイダーを登録
    */
-  registerProvider(provider: AIProviderInterface): void {
+  registerProvider(provider: AIProvider): void {
     this.providers.set(provider.name, provider);
-    this.emit('provider-registered', { name: provider.name });
+    console.log(`AI Provider registered: ${provider.name}`);
   }
 
   /**
-   * 設定を更新
+   * 添削を開始
    */
-  updateSettings(settings: AppSettings): void {
-    this.settings = settings;
-    this.currentMode = settings.defaultMode;
-    this.emit('settings-updated', settings);
-  }
-
-  /**
-   * テキストを添削
-   */
-  async correctText(request: CorrectionRequest): Promise<CorrectionResult | null> {
-    if (this.isProcessing) {
-      this.emit('error', {
-        code: 'VALIDATION_ERROR' as ErrorCode,
-        message: '既に処理中です',
-        details: { request }
+  async startCorrection(text: string, mode?: CorrectionMode): Promise<string> {
+    // 入力検証
+    if (!text || text.trim().length === 0) {
+      eventBus.emit(EventType.CORRECTION_FAILED, {
+        error: {
+          code: 'VALIDATION_ERROR' as ErrorCode,
+          message: 'テキストが空です',
+          timestamp: new Date()
+        },
+        requestId: '',
+        text
       });
-      return null;
+      return '';
     }
 
-    this.isProcessing = true;
-    this.emit('correction-started', request);
+    // リクエストを作成
+    const request: CorrectionRequest = {
+      id: uuidv4(),
+      text: text.trim(),
+      mode: mode || this.currentMode,
+      timestamp: new Date(),
+      retryCount: 0
+    };
+
+    // アクティブリクエストに追加
+    this.activeRequests.set(request.id, request);
+
+    // 添削開始イベントを発行
+    eventBus.emit(EventType.CORRECTION_STARTED, {
+      text: request.text,
+      mode: request.mode,
+      requestId: request.id
+    });
+
+    return request.id;
+  }
+
+  /**
+   * 添削を実行
+   */
+  private async executeCorrection(request: CorrectionRequest): Promise<CorrectionResult> {
+    // プロバイダーの選択
+    const provider = this.selectProvider(request.provider);
+    if (!provider) {
+      throw new Error('利用可能なプロバイダーがありません');
+    }
+
+    // タイムアウト付きで実行
+    const correctionPromise = provider.correctText(
+      request.text, 
+      request.mode,
+      { timeout: this.options.timeout }
+    );
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('添削タイムアウト')), this.options.timeout);
+    });
 
     try {
-      // 入力検証
-      if (!request.text || request.text.trim().length === 0) {
-        throw new Error('テキストが空です');
-      }
-
-      // プロバイダーの選択
-      const providerName = request.provider || this.getDefaultProvider();
-      const provider = this.providers.get(providerName);
+      const result = await Promise.race([correctionPromise, timeoutPromise]);
       
-      if (!provider || !provider.isAvailable()) {
-        throw new Error(`プロバイダー ${providerName} が利用できません`);
+      // 変更箇所を検出
+      if (!result.changes || result.changes.length === 0) {
+        result.changes = this.detectChanges(request.text, result.text);
       }
-
-      // 添削実行（リトライ機能付き）
-      const result = await this.executeWithRetry(
-        () => provider.correctText(request.text, request.mode, request.options),
-        this.options.retryAttempts,
-        this.options.retryDelay
-      );
-
-      // 後処理
-      await this.postProcessResult(result, request);
-
-      this.emit('correction-completed', result);
-      return result;
-
-    } catch (error) {
-      const errorEvent = {
-        code: 'API_ERROR' as ErrorCode,
-        message: '添削処理中にエラーが発生しました',
-        details: error,
-        request
-      };
       
-      this.emit('error', errorEvent);
-      return null;
-      
-    } finally {
-      this.isProcessing = false;
-    }
-  }
-
-  /**
-   * バッチ添削（複数テキストの一括処理）
-   */
-  async correctBatch(texts: string[], mode: CorrectionMode): Promise<CorrectionResult[]> {
-    const results: CorrectionResult[] = [];
-    
-    this.emit('batch-started', { count: texts.length, mode });
-    
-    for (let i = 0; i < texts.length; i++) {
-      try {
-        const result = await this.correctText({
-          text: texts[i],
-          mode
-        });
-        
-        if (result) {
-          results.push(result);
-        }
-        
-        this.emit('batch-progress', {
-          current: i + 1,
-          total: texts.length,
-          result
-        });
-        
-      } catch (error) {
-        this.emit('batch-error', {
-          index: i,
-          text: texts[i],
-          error
-        });
-      }
-    }
-    
-    this.emit('batch-completed', results);
-    return results;
-  }
-
-  /**
-   * 添削モードを変更
-   */
-  setMode(mode: CorrectionMode): void {
-    this.currentMode = mode;
-    this.emit('mode-changed', mode);
-  }
-
-  /**
-   * 現在のモードを取得
-   */
-  getMode(): CorrectionMode {
-    return this.currentMode;
-  }
-
-  /**
-   * リトライ機能付き実行
-   */
-  private async executeWithRetry<T>(
-    fn: () => Promise<T>,
-    retries: number,
-    delay: number
-  ): Promise<T> {
-    let lastError: any;
-    
-    for (let i = 0; i < retries; i++) {
-      try {
-        return await fn();
-      } catch (error) {
-        lastError = error;
-        
-        if (i < retries - 1) {
-          this.emit('retry', {
-            attempt: i + 1,
-            maxAttempts: retries,
-            error
-          });
-          
-          await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-        }
-      }
-    }
-    
-    throw lastError;
-  }
-
-  /**
-   * 結果の後処理
-   */
-  private async postProcessResult(
-    result: CorrectionResult,
-    request: CorrectionRequest
-  ): Promise<void> {
-    // 自動コピー
-    if (this.options.autoCopy) {
-      await clipboardController.copyCorrectionResult(result);
-    }
-
-    // 履歴保存
-    if (this.options.saveHistory) {
-      this.emit('save-history', {
-        originalText: request.text,
-        correctedText: result.text,
+      // 統計情報を記録
+      eventBus.emit(EventType.USAGE_RECORDED, {
+        provider: provider.name,
         mode: request.mode,
-        model: result.model
+        inputLength: request.text.length,
+        outputLength: result.text.length,
+        processingTime: result.processingTime,
+        timestamp: new Date()
+      });
+      
+      return result;
+      
+    } catch (error) {
+      // リトライ処理
+      if (request.retryCount < this.options.retryAttempts) {
+        request.retryCount++;
+        await new Promise(resolve => setTimeout(resolve, this.options.retryDelay * request.retryCount));
+        return await this.executeCorrection(request);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * プロバイダーを選択
+   */
+  private selectProvider(preferredProvider?: string): AIProvider | null {
+    if (preferredProvider) {
+      const provider = this.providers.get(preferredProvider);
+      if (provider && provider.isAvailable()) {
+        return provider;
+      }
+    }
+
+    // 利用可能な最初のプロバイダーを返す
+    for (const [_, provider] of this.providers) {
+      if (provider.isAvailable()) {
+        return provider;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * エラーハンドリング
+   */
+  private async handleCorrectionError(request: CorrectionRequest, error: any): Promise<void> {
+    const errorCode = this.determineErrorCode(error);
+    
+    eventBus.emit(EventType.CORRECTION_FAILED, {
+      error: {
+        code: errorCode,
+        message: error.message || '添削中にエラーが発生しました',
+        details: error,
+        timestamp: new Date()
+      },
+      requestId: request.id,
+      text: request.text
+    });
+
+    // システムエラーも発行
+    if (errorCode === 'UNKNOWN_ERROR') {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: errorCode,
+          message: '予期しないエラーが発生しました',
+          details: error,
+          timestamp: new Date()
+        },
+        context: { request }
       });
     }
-
-    // 統計情報の更新
-    this.emit('usage-updated', {
-      provider: result.model,
-      tokensUsed: this.estimateTokens(request.text + result.text),
-      processingTime: result.processingTime
-    });
   }
 
   /**
-   * デフォルトプロバイダーを取得
+   * エラーコードを判定
    */
-  private getDefaultProvider(): string {
-    if (this.settings?.aiSettings.primaryProvider) {
-      return this.settings.aiSettings.primaryProvider;
+  private determineErrorCode(error: any): ErrorCode {
+    if (error.message?.includes('ネットワーク') || error.code === 'ENOTFOUND') {
+      return 'NETWORK_ERROR';
     }
-    
-    // 利用可能な最初のプロバイダーを返す
-    for (const [name, provider] of this.providers) {
-      if (provider.isAvailable()) {
-        return name;
-      }
+    if (error.message?.includes('API') || error.response?.status >= 400) {
+      return 'API_ERROR';
     }
-    
-    throw new Error('利用可能なプロバイダーがありません');
+    if (error.message?.includes('権限') || error.message?.includes('Permission')) {
+      return 'PERMISSION_ERROR';
+    }
+    return 'UNKNOWN_ERROR';
   }
 
   /**
-   * トークン数を推定（簡易版）
+   * テキストの変更箇所を検出
    */
-  private estimateTokens(text: string): number {
-    // 日本語の場合、1文字≒2トークンとして概算
-    const japaneseChars = (text.match(/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/g) || []).length;
-    const otherChars = text.length - japaneseChars;
-    
-    return Math.ceil(japaneseChars * 2 + otherChars * 0.25);
-  }
-
-  /**
-   * 添削の差分を生成
-   */
-  generateDiff(original: string, corrected: string): CorrectionChange[] {
+  private detectChanges(original: string, corrected: string): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
     
-    // 簡易的な差分検出（実際の実装では、より高度なdiffアルゴリズムを使用）
-    const originalWords = original.split(/(\s+|[。、])/);
-    const correctedWords = corrected.split(/(\s+|[。、])/);
+    // 単純な単語レベルの差分検出
+    const originalWords = original.split(/(\s+|[。、！？])/);
+    const correctedWords = corrected.split(/(\s+|[。、！？])/);
     
     let position = 0;
-    for (let i = 0; i < Math.max(originalWords.length, correctedWords.length); i++) {
+    const maxLength = Math.max(originalWords.length, correctedWords.length);
+    
+    for (let i = 0; i < maxLength; i++) {
       const origWord = originalWords[i] || '';
       const corrWord = correctedWords[i] || '';
       
@@ -320,7 +291,7 @@ export class CorrectionController extends EventEmitter {
         changes.push({
           original: origWord,
           corrected: corrWord,
-          reason: '表現の改善',
+          reason: this.inferChangeReason(origWord, corrWord),
           position: {
             start: position,
             end: position + origWord.length
@@ -332,6 +303,92 @@ export class CorrectionController extends EventEmitter {
     }
     
     return changes;
+  }
+
+  /**
+   * 変更理由を推測
+   */
+  private inferChangeReason(original: string, corrected: string): string {
+    // 敬語変換
+    if (corrected.includes('です') || corrected.includes('ます')) {
+      return '敬語表現への変換';
+    }
+    
+    // 漢字変換
+    if (original.match(/[\u3040-\u309f]/) && corrected.match(/[\u4e00-\u9faf]/)) {
+      return '漢字変換';
+    }
+    
+    // 句読点
+    if (original.match(/[、。]/) || corrected.match(/[、。]/)) {
+      return '句読点の修正';
+    }
+    
+    return '表現の改善';
+  }
+
+  /**
+   * 添削モードを設定
+   */
+  setMode(mode: CorrectionMode): void {
+    this.currentMode = mode;
+    eventBus.emit(EventType.SETTINGS_CHANGED, { defaultMode: mode });
+  }
+
+  /**
+   * 現在のモードを取得
+   */
+  getMode(): CorrectionMode {
+    return this.currentMode;
+  }
+
+  /**
+   * バッチ添削（複数テキストの一括処理）
+   */
+  async correctBatch(texts: string[], mode?: CorrectionMode): Promise<string[]> {
+    const requestIds: string[] = [];
+    
+    // 全てのリクエストを開始
+    for (const text of texts) {
+      const requestId = await this.startCorrection(text, mode);
+      if (requestId) {
+        requestIds.push(requestId);
+      }
+    }
+    
+    // 全ての完了を待つ
+    return new Promise((resolve) => {
+      const results: string[] = [];
+      let completed = 0;
+      
+      const listener = (payload: any) => {
+        if (requestIds.includes(payload.requestId)) {
+          results.push(payload.result.text);
+          completed++;
+          
+          if (completed === requestIds.length) {
+            eventBus.off(EventType.CORRECTION_COMPLETED, listener);
+            resolve(results);
+          }
+        }
+      };
+      
+      eventBus.on(EventType.CORRECTION_COMPLETED, listener);
+    });
+  }
+
+  /**
+   * オプションを更新
+   */
+  updateOptions(options: Partial<typeof this.options>): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  /**
+   * アクティブなリクエスト数を取得
+   */
+  getActiveRequestCount(): number {
+    return this.activeRequests.size;
   }
 
   /**
@@ -348,35 +405,10 @@ export class CorrectionController extends EventEmitter {
   }
 
   /**
-   * 処理中かどうかを取得
-   */
-  isCurrentlyProcessing(): boolean {
-    return this.isProcessing;
-  }
-
-  /**
-   * オプションを更新
-   */
-  updateOptions(options: Partial<CorrectionOptions>): void {
-    this.options = { ...this.options, ...options };
-    this.emit('options-updated', this.options);
-  }
-
-  /**
-   * 統計情報をリセット
-   */
-  resetStatistics(): void {
-    this.emit('statistics-reset');
-  }
-
-  /**
    * クリーンアップ処理
    */
   destroy(): void {
+    this.activeRequests.clear();
     this.providers.clear();
-    this.removeAllListeners();
   }
 }
-
-// シングルトンインスタンスをエクスポート
-export const correctionController = new CorrectionController();
