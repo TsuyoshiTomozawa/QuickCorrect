@@ -1,42 +1,41 @@
 /**
- * Models Layer Placeholder
+ * Model Layer Exports
  * 
- * This is a placeholder for the models layer that will be implemented
- * by the worker responsible for Model layer (worker1 in another branch).
- * For now, we export stub implementations to allow IPC integration.
+ * Central export point for all model layer components
  */
 
-import { AIProvider, AIProviderConfig } from './providers/AIProvider';
-export { HistoryManager } from './history/HistoryManager';
+// AI Providers
+export { AIProvider, AIProviderConfig, AIProviderMetadata } from './providers/AIProvider';
+export { OpenAIProvider } from './providers/OpenAIProvider';
 
-// Stub provider factory until real implementation is merged
+// History Management
+export { HistoryManager, HistorySearchOptions, HistoryStats } from './history/HistoryManager';
+
+// Re-export types from interfaces for convenience
+export type { 
+  CorrectionResult, 
+  CorrectionMode, 
+  CorrectionHistory,
+  CorrectionChange 
+} from '../types/interfaces';
+
+// Provider Factory for easy instantiation
 export class ProviderFactory {
-  static createProvider(type: string, config: AIProviderConfig): any {
-    console.log(`Creating ${type} provider with config:`, config);
-    // Return a stub provider that can be used for testing
-    return {
-      correctText: async (text: string, mode: string) => {
-        return {
-          text: `[STUB] Corrected: ${text}`,
-          explanation: 'This is a stub response',
-          changes: [],
-          confidence: 0.5,
-          processingTime: 100,
-          model: 'stub'
-        };
-      },
-      checkAvailability: async () => true,
-      getUsageStats: async () => ({ tokensUsed: 0, requestCount: 0, cost: 0 })
-    };
+  static createProvider(
+    type: 'openai' | 'anthropic' | 'google',
+    config: AIProviderConfig
+  ): AIProvider {
+    switch (type) {
+      case 'openai':
+        return new OpenAIProvider(config);
+      case 'anthropic':
+        // TODO: Implement AnthropicProvider
+        throw new Error('Anthropic provider not yet implemented');
+      case 'google':
+        // TODO: Implement GoogleProvider
+        throw new Error('Google provider not yet implemented');
+      default:
+        throw new Error(`Unknown provider type: ${type}`);
+    }
   }
-}
-
-// Export stub interfaces
-export interface AIProviderConfig {
-  apiKey: string;
-  baseUrl?: string;
-  timeout?: number;
-  maxRetries?: number;
-  temperature?: number;
-  maxTokens?: number;
 }
