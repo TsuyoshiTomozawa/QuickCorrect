@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TextInput, TextOutput } from './components';
 import { 
   useTextSelection, 
   useWindowControls, 
@@ -51,19 +52,6 @@ const SidePanel = styled(motion.div)`
   background: white;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
   z-index: 1000;
-`;
-
-const PlaceholderPanel = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: 8px;
-  margin: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  font-size: 18px;
-  color: #666;
 `;
 
 const App: React.FC = () => {
@@ -167,82 +155,21 @@ const App: React.FC = () => {
       
       <MainContent>
         <TextPanelContainer>
-          {/* Input Panel */}
-          <PlaceholderPanel>
-            <div style={{ textAlign: 'center' }}>
-              <h3>入力テキスト</h3>
-              <p>{settings?.hotkey || 'Ctrl+T'} で選択したテキストがここに表示されます</p>
-              <textarea 
-                value={inputText}
-                onChange={(e) => handleInputChange(e.target.value)}
-                placeholder="または直接テキストを入力してください..."
-                style={{
-                  width: '90%',
-                  height: '200px',
-                  padding: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  resize: 'vertical'
-                }}
-              />
-              <br />
-              <button 
-                onClick={() => handleCorrectText()}
-                disabled={isLoading || !inputText.trim()}
-                style={{
-                  marginTop: '12px',
-                  padding: '8px 16px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                {isLoading ? '添削中...' : '添削実行'}
-              </button>
-            </div>
-          </PlaceholderPanel>
+          <TextInput
+            value={inputText}
+            onChange={handleInputChange}
+            onCorrect={handleCorrectText}
+            isLoading={isLoading}
+            correctionMode={correctionMode}
+            onModeChange={handleModeChange}
+          />
           
-          {/* Output Panel */}
-          <PlaceholderPanel>
-            <div style={{ textAlign: 'center' }}>
-              <h3>添削結果</h3>
-              {isLoading ? (
-                <p>AIが添削中です...</p>
-              ) : result ? (
-                <div>
-                  <textarea 
-                    value={result.text}
-                    readOnly
-                    style={{
-                      width: '90%',
-                      height: '200px',
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      backgroundColor: '#f8f9fa'
-                    }}
-                  />
-                  <br />
-                  {settings?.autoCopy && (
-                    <p style={{ color: '#28a745', marginTop: '12px' }}>✅ クリップボードにコピー済み</p>
-                  )}
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                    Model: {result.model} | 処理時間: {(result.processingTime / 1000).toFixed(1)}秒
-                  </div>
-                </div>
-              ) : (
-                <p>添削結果がここに表示されます</p>
-              )}
-              
-              {error && (
-                <p style={{ color: '#dc3545', marginTop: '12px' }}>❌ {error}</p>
-              )}
-            </div>
-          </PlaceholderPanel>
+          <TextOutput
+            correctionResult={result}
+            isLoading={isLoading}
+            error={error}
+            onApplyToInput={() => handleInputChange(result?.text || '')}
+          />
         </TextPanelContainer>
         
         {/* Status Bar */}
