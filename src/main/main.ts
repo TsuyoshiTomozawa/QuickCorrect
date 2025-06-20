@@ -2,9 +2,10 @@
  * QuickCorrect - Main Process Entry Point (統合版)
  * 
  * Controller統合とイベント処理を実装した改良版
+ * Model層との統合を含む
  */
 
-import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut } from 'electron';
 import * as path from 'path';
 import { eventBus, EventType } from '../services/EventBus';
 import { HotkeyController } from '../controllers/HotkeyController';
@@ -12,6 +13,8 @@ import { CorrectionController, AIProvider } from '../controllers/CorrectionContr
 import { ClipboardController } from '../controllers/ClipboardController';
 import { WorkflowOrchestrator } from '../services/WorkflowOrchestrator';
 import { CorrectionMode, CorrectionResult, AppSettings } from '../types/interfaces';
+import { initializeIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
+import { SettingsManager } from './settings/SettingsManager';
 
 // グローバル変数
 let mainWindow: BrowserWindow | null = null;
@@ -19,6 +22,7 @@ let hotkeyController: HotkeyController;
 let correctionController: CorrectionController;
 let clipboardController: ClipboardController;
 let workflowOrchestrator: WorkflowOrchestrator;
+let settingsManager: SettingsManager;
 let tray: Tray | null = null;
 
 // 開発モードかチェック
@@ -27,14 +31,19 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 /**
  * メインウィンドウを作成
  */
-function createWindow(): void {
+async function createWindow(): Promise<void> {
+  // 設定マネージャーの初期化
+  settingsManager = new SettingsManager(app.getPath('userData'));
+  const settings = await settingsManager.getSettings();
+
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 600,
+    width: settings.windowSettings.size.width,
+    height: settings.windowSettings.size.height,
     minWidth: 700,
     minHeight: 450,
     show: false,
-    alwaysOnTop: true,
+    alwaysOnTop: settings.windowSettings.alwaysOnTop,
+    opacity: settings.windowSettings.opacity,
     frame: true,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#ffffff',
@@ -46,6 +55,14 @@ function createWindow(): void {
     },
     icon: path.join(__dirname, '../../assets/icon.png')
   });
+
+  // ウィンドウ位置の復元
+  if (settings.windowSettings.position.x !== -1 && settings.windowSettings.position.y !== -1) {
+    mainWindow.setPosition(
+      settings.windowSettings.position.x,
+      settings.windowSettings.position.y
+    );
+  }
 
   // 開発環境設定
   if (isDevelopment) {
@@ -60,6 +77,11 @@ function createWindow(): void {
     if (mainWindow) {
       mainWindow.show();
       setupWindowEventHandlers();
+      
+      // macOSでフォーカス
+      if (process.platform === 'darwin') {
+        mainWindow.focus();
+      }
     }
   });
 
@@ -83,6 +105,28 @@ function setupWindowEventHandlers(): void {
   // ウィンドウブラー
   mainWindow.on('blur', () => {
     eventBus.emit(EventType.WINDOW_BLUR, { timestamp: new Date() });
+  });
+
+  // ウィンドウ移動時に位置を保存
+  mainWindow.on('moved', () => {
+    if (mainWindow) {
+      const [x, y] = mainWindow.getPosition();
+      settingsManager.setSetting('windowSettings', {
+        position: { x, y },
+        size: mainWindow.getSize()
+      });
+    }
+  });
+
+  // ウィンドウリサイズ時にサイズを保存
+  mainWindow.on('resized', () => {
+    if (mainWindow) {
+      const [width, height] = mainWindow.getSize();
+      settingsManager.setSetting('windowSettings', {
+        position: mainWindow.getPosition(),
+        size: { width, height }
+      });
+    }
   });
 
   // 最小化時は非表示にする
@@ -167,7 +211,8 @@ async function initializeControllers(): Promise<void> {
   }
   
   // ホットキーの登録
-  await hotkeyController.register();
+  const settings = await settingsManager.getSettings();
+  await hotkeyController.register(settings.hotkey);
   
   // システム準備完了イベント
   eventBus.emit(EventType.SYSTEM_READY, { timestamp: new Date() });
@@ -214,6 +259,9 @@ function createMockAIProvider(): AIProvider {
  * IPCハンドラーを設定
  */
 function setupIPC(): void {
+  // Model層のIPCハンドラーを初期化
+  initializeIPCHandlers();
+
   // 手動テキスト添削
   ipcMain.handle('correct-text', async (event, text: string, mode?: CorrectionMode) => {
     try {
@@ -227,23 +275,29 @@ function setupIPC(): void {
 
   // 設定取得
   ipcMain.handle('get-settings', async () => {
-    // TODO: 実際の設定管理を実装
+    const savedSettings = await settingsManager.getSettings();
     return {
+      ...savedSettings,
       hotkey: hotkeyController.getCurrentHotkey(),
-      defaultMode: correctionController.getMode(),
-      autoCorrect: true,
-      autoCopy: true
-    } as Partial<AppSettings>;
+      defaultMode: correctionController.getMode()
+    } as AppSettings;
   });
 
   // 設定保存
   ipcMain.handle('save-settings', async (event, settings: Partial<AppSettings>) => {
     try {
+      await settingsManager.setSetting('settings', settings);
       eventBus.emit(EventType.SETTINGS_CHANGED, settings);
       eventBus.emit(EventType.SETTINGS_SAVED, { 
         settings,
         timestamp: new Date() 
       });
+      
+      // ホットキーの更新
+      if (settings.hotkey && settings.hotkey !== hotkeyController.getCurrentHotkey()) {
+        await hotkeyController.register(settings.hotkey);
+      }
+      
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -285,6 +339,17 @@ function setupIPC(): void {
       activeRequests: correctionController.getActiveRequestCount()
     };
   });
+
+  // 選択テキスト処理のイベントリスナー
+  ipcMain.on('text-selected', (event, text: string) => {
+    if (text && text.trim()) {
+      eventBus.emit(EventType.TEXT_SELECTED, {
+        text: text.trim(),
+        source: 'renderer',
+        timestamp: new Date()
+      });
+    }
+  });
 }
 
 /**
@@ -322,7 +387,7 @@ function setupErrorHandlers(): void {
  * アプリケーション起動
  */
 app.whenReady().then(async () => {
-  createWindow();
+  await createWindow();
   createTray();
   await initializeControllers();
   setupIPC();
@@ -343,6 +408,7 @@ app.whenReady().then(async () => {
  * 全ウィンドウが閉じられた時
  */
 app.on('window-all-closed', () => {
+  // macOSではアプリを終了しない
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -351,17 +417,23 @@ app.on('window-all-closed', () => {
 /**
  * アプリ終了前のクリーンアップ
  */
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   console.log('Cleaning up before quit...');
   
   // シャットダウンイベント
   eventBus.emit(EventType.SYSTEM_SHUTDOWN, { timestamp: new Date() });
+  
+  // グローバルショートカットの解除
+  globalShortcut.unregisterAll();
   
   // コントローラーのクリーンアップ
   hotkeyController?.destroy();
   clipboardController?.destroy();
   correctionController?.destroy();
   workflowOrchestrator?.destroy();
+  
+  // Model層のクリーンアップ
+  await cleanupIPCHandlers();
   
   // トレイの削除
   tray?.destroy();
@@ -371,8 +443,9 @@ app.on('before-quit', () => {
  * セキュリティ: 新規ウィンドウ作成を防止
  */
 app.on('web-contents-created', (event, contents) => {
-  contents.on('new-window', (event) => {
+  contents.on('new-window', (event, navigationUrl) => {
     event.preventDefault();
+    console.log('Prevented new window:', navigationUrl);
   });
   
   // ナビゲーション制限
