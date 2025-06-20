@@ -102,10 +102,17 @@ export abstract class AIProvider {
     let prompt = modeInstructions[mode] || modeInstructions.business;
     
     if (context) {
-      prompt += `\n\n文脈情報: ${context}`;
+      prompt += `
+
+文脈情報: ${context}`;
     }
 
-    prompt += `\n\n修正対象テキスト:\n${text}\n\n修正後のテキストと、主な変更点の説明を提供してください。`;
+    prompt += `
+
+修正対象テキスト:
+${text}
+
+修正後のテキストと、主な変更点の説明を提供してください。`;
 
     return prompt;
   }

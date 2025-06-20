@@ -62,7 +62,7 @@ const App: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
 
   // Use custom hooks
-  const { hideWindow, minimizeWindow, closeWindow } = useWindowControls();
+  const { hideWindow, closeWindow } = useWindowControls();
   const { correctText, isLoading, error, result, clearError } = useCorrection();
   const { settings, updateSettings } = useSettings();
   const { history, addToHistory } = useHistory(50);
@@ -220,7 +220,10 @@ const App: React.FC = () => {
                     type="checkbox" 
                     checked={settings?.privacy.saveHistory || false}
                     onChange={(e) => updateSettings({ 
-                      privacy: { ...settings?.privacy, saveHistory: e.target.checked } 
+                      privacy: { 
+                        saveHistory: e.target.checked,
+                        analyticsEnabled: settings?.privacy?.analyticsEnabled ?? false
+                      } 
                     })}
                   />
                   {' '}履歴を保存
@@ -242,7 +245,7 @@ const App: React.FC = () => {
               <h3>履歴</h3>
               {history.length > 0 ? (
                 <div style={{ marginTop: '20px', maxHeight: '400px', overflow: 'auto' }}>
-                  {history.map((item, index) => (
+                  {history.map((item) => (
                     <div key={item.id} style={{ 
                       padding: '10px', 
                       borderBottom: '1px solid #eee',

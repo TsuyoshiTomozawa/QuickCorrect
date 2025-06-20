@@ -5,7 +5,7 @@
  * for all IPC communication between renderer and main processes.
  */
 
-import { CorrectionMode, AppSettings } from '../../types/interfaces';
+import { CorrectionMode } from '../../types/interfaces';
 
 export interface ValidationResult {
   valid: boolean;

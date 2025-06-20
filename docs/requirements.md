@@ -202,3 +202,52 @@
 - **FE-010**: Integration with popular writing tools (Word, Google Docs)
 
 This requirements specification serves as the foundation for QuickCorrect development and will be updated as the project evolves.
+
+## Development Methodology
+
+### Test-Driven Development (TDD)
+**すべての新機能開発はTDDサイクルに従って実装すること：**
+
+1. **Red**: まず失敗するテストを書く
+2. **Green**: テストを通すための最小限のコードを書く
+3. **Refactor**: コードを改善・リファクタリングする
+
+## 実装前計画フェーズ
+**コード修正前に必ず実装計画を立案すること：**
+
+1. **計画策定**: 実装アプローチ、影響範囲、依存関係を明確化
+2. **設計検討**: アーキテクチャ、インターフェース、データ構造を決定
+3. **タスク分解**: 実装を小さな単位に分割
+4. **リスク評価**: 潜在的な問題点と対策を検討
+
+**⚠️ 重要**: 計画フェーズではコードの修正は一切行わないこと
+
+### TDD実装フロー
+```bash
+# 1. テストファイルを作成
+touch src/__tests__/NewFeature.test.ts
+
+# 2. テスト実行（失敗を確認）
+yarn test NewFeature.test.ts
+
+# 3. 実装ファイルを作成
+touch src/NewFeature.ts
+
+# 4. テストを通すための最小実装
+# 5. リファクタリング
+# 6. 全テスト実行で既存機能の破綻確認
+yarn test
+```
+
+### テスト優先ルール
+- **新機能**: 必ずテストから開始
+- **バグ修正**: 再現テストを先に作成
+- **リファクタリング**: 既存テストが全て通ることを確認
+
+## Key Technical Details
+
+- **IPC Channels**: Use consistent naming like `correction:request`, `clipboard:copy`
+- **TypeScript**: All files must be TypeScript with proper type definitions
+- **Error Handling**: Wrap API calls in try-catch with user-friendly error messages
+- **Testing**: Write comprehensive tests following TDD methodology
+- **State Management**: React state in App.tsx, no external state library needed

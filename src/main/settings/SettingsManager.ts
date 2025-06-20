@@ -6,7 +6,7 @@
  */
 
 import Store from 'electron-store';
-import { AppSettings, CorrectionMode } from '../../types/interfaces';
+import { AppSettings } from '../../types/interfaces';
 import * as crypto from 'crypto';
 
 // Default settings

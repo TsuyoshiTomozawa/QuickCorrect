@@ -11,7 +11,7 @@ import { CorrectionResult, CorrectionHistory, ErrorCode } from '../types/interfa
 export interface ClipboardEvent {
   type: 'copy' | 'paste' | 'changed';
   content: string;
-  format: 'text' | 'html' | 'rtf';
+  format: 'text' | 'html' | 'rtf' | 'image';
   timestamp: Date;
 }
 
@@ -352,7 +352,7 @@ export class ClipboardController {
   /**
    * クリップボードから画像を読み取り
    */
-  readImage(): nativeImage.NativeImage | null {
+  readImage(): Electron.NativeImage | null {
     try {
       const image = clipboard.readImage();
       return image.isEmpty() ? null : image;

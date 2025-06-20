@@ -174,7 +174,6 @@ export const TextInput: React.FC<TextInputProps> = ({
   className,
   style
 }) => {
-  const [isFocused, setIsFocused] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -219,8 +218,6 @@ export const TextInput: React.FC<TextInputProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
           maxLength={maxLength}
           disabled={isLoading}

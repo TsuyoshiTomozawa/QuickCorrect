@@ -108,29 +108,35 @@ function setupWindowEventHandlers(): void {
   });
 
   // ウィンドウ移動時に位置を保存
-  mainWindow.on('moved', () => {
+  mainWindow.on('moved', async () => {
     if (mainWindow) {
       const [x, y] = mainWindow.getPosition();
+      const [width, height] = mainWindow.getSize();
+      const currentSettings = await settingsManager.getSetting('windowSettings');
       settingsManager.setSetting('windowSettings', {
+        ...currentSettings,
         position: { x, y },
-        size: mainWindow.getSize()
+        size: { width, height }
       });
     }
   });
 
   // ウィンドウリサイズ時にサイズを保存
-  mainWindow.on('resized', () => {
+  mainWindow.on('resized', async () => {
     if (mainWindow) {
       const [width, height] = mainWindow.getSize();
+      const [x, y] = mainWindow.getPosition();
+      const currentSettings = await settingsManager.getSetting('windowSettings');
       settingsManager.setSetting('windowSettings', {
-        position: mainWindow.getPosition(),
+        ...currentSettings,
+        position: { x, y },
         size: { width, height }
       });
     }
   });
 
   // 最小化時は非表示にする
-  mainWindow.on('minimize', (event) => {
+  mainWindow.on('minimize', (event: Electron.Event) => {
     event.preventDefault();
     mainWindow?.hide();
     eventBus.emit(EventType.WINDOW_HIDE, { 
@@ -263,7 +269,7 @@ function setupIPC(): void {
   initializeIPCHandlers();
 
   // 手動テキスト添削
-  ipcMain.handle('correct-text', async (event, text: string, mode?: CorrectionMode) => {
+  ipcMain.handle('correct-text', async (_event, text: string, mode?: CorrectionMode) => {
     try {
       if (workflowOrchestrator) {
         await workflowOrchestrator.processManualText(text, mode);
@@ -294,9 +300,9 @@ function setupIPC(): void {
   });
 
   // 設定保存
-  ipcMain.handle('save-settings', async (event, settings: Partial<AppSettings>) => {
+  ipcMain.handle('save-settings', async (_event, settings: Partial<AppSettings>) => {
     try {
-      await settingsManager.setSetting('settings', settings);
+      await settingsManager.updateSettings(settings);
       eventBus.emit(EventType.SETTINGS_CHANGED, settings);
       eventBus.emit(EventType.SETTINGS_SAVED, { 
         settings,
@@ -332,7 +338,7 @@ function setupIPC(): void {
   });
 
   // クリップボード操作（コントローラー経由）
-  ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
+  ipcMain.handle('copy-to-clipboard', async (_event, text: string) => {
     return await clipboardController.copyToClipboard(text);
   });
 
@@ -354,17 +360,17 @@ function setupIPC(): void {
     eventBus.debug();
     return {
       workflowState: workflowOrchestrator?.getWorkflowState() || 'not-initialized',
-      hotkeyRegistered: hotkeyController?.isHotkeyRegistered() || false,
+      hotkeyRegistered: hotkeyController?.getRegistrationStatus() || false,
       activeRequests: correctionController?.getActiveRequestCount() || 0
     };
   });
 
   // 選択テキスト処理のイベントリスナー
-  ipcMain.on('text-selected', (event, text: string) => {
+  ipcMain.on('text-selected', (_event, text: string) => {
     if (text && text.trim()) {
       eventBus.emit(EventType.TEXT_SELECTED, {
         text: text.trim(),
-        source: 'renderer',
+        source: 'manual',
         timestamp: new Date()
       });
     }
@@ -373,32 +379,37 @@ function setupIPC(): void {
 
 /**
  * 選択されたテキストでウィンドウを表示
+ * 現在未使用だが、将来的に使用する可能性があるため保持
  */
-async function showWindowWithSelectedText(): Promise<void> {
-  try {
-    // 選択されたテキストを取得
-    const selectedText = await clipboardController.getSelectedText();
-    
-    if (selectedText && selectedText.trim()) {
-      // ウィンドウが存在しない場合は作成
-      if (!mainWindow) {
-        await createWindow();
-      }
+if (false) {
+  // この関数は将来的に使用される可能性があるため保持
+  async function showWindowWithSelectedText(): Promise<void> {
+    try {
+      // 選択されたテキストを取得
+      const selectedText = await clipboardController.getSelectedText();
       
-      // ウィンドウを表示
-      if (mainWindow) {
-        if (!mainWindow.isVisible()) {
-          mainWindow.show();
+      if (selectedText && selectedText.trim()) {
+        // ウィンドウが存在しない場合は作成
+        if (!mainWindow) {
+          await createWindow();
         }
-        mainWindow.focus();
         
-        // 選択されたテキストをレンダラーに送信
-        mainWindow.webContents.send('text-selected', selectedText);
+        // ウィンドウを表示
+        if (mainWindow) {
+          if (!mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+          mainWindow.focus();
+          
+          // 選択されたテキストをレンダラーに送信
+          mainWindow.webContents.send('text-selected', selectedText);
+        }
       }
+    } catch (error) {
+      console.error('Error processing selected text:', error);
     }
-  } catch (error) {
-    console.error('Error processing selected text:', error);
   }
+  showWindowWithSelectedText(); // TypeScriptの警告を回避
 }
 
 /**
@@ -491,10 +502,10 @@ app.on('before-quit', async () => {
 /**
  * セキュリティ: 新規ウィンドウ作成を防止
  */
-app.on('web-contents-created', (event, contents) => {
-  contents.on('new-window', (event, navigationUrl) => {
-    event.preventDefault();
-    console.log('Prevented new window:', navigationUrl);
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    console.log('Prevented new window:', url);
+    return { action: 'deny' };
   });
   
   // ナビゲーション制限

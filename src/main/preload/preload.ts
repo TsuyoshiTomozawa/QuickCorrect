@@ -24,7 +24,8 @@ const ALLOWED_CHANNELS = {
     'copy-to-clipboard',
     'get-clipboard-text',
     'get-system-info',
-    'check-permissions'
+    'check-permissions',
+    'get-statistics'
   ],
   on: [
     'text-selected'
@@ -122,7 +123,7 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.removeAllListeners('text-selected');
     
     // Add the new listener
-    ipcRenderer.on('text-selected', (event, text) => {
+    ipcRenderer.on('text-selected', (_event, text) => {
       callback(text);
     });
   },
@@ -162,6 +163,14 @@ const electronAPI: ElectronAPI = {
       throw new Error('Channel not allowed');
     }
     return ipcRenderer.invoke('check-permissions');
+  },
+
+  // Statistics
+  getStatistics: async () => {
+    if (!isAllowedChannel('get-statistics', 'invoke')) {
+      throw new Error('Channel not allowed');
+    }
+    return ipcRenderer.invoke('get-statistics');
   }
 };
 

@@ -8,8 +8,7 @@
 import { EventEmitter } from 'events';
 import { 
   CorrectionResult, 
-  CorrectionMode, 
-  ErrorCode,
+  CorrectionMode,
   AppError 
 } from '../types/interfaces';
 
@@ -35,6 +34,7 @@ export enum EventType {
   CLIPBOARD_COPIED = 'clipboard:copied',
   CLIPBOARD_COPY_FAILED = 'clipboard:copy-failed',
   CLIPBOARD_CHANGED = 'clipboard:changed',
+  CLIPBOARD_CLEARED = 'clipboard:cleared',
   
   // ウィンドウイベント
   WINDOW_SHOW = 'window:show',
@@ -54,7 +54,8 @@ export enum EventType {
   
   // 統計イベント
   STATS_UPDATED = 'stats:updated',
-  USAGE_RECORDED = 'usage:recorded'
+  USAGE_RECORDED = 'usage:recorded',
+  STATISTICS_RESET = 'stats:reset'
 }
 
 // イベントペイロードの型定義
@@ -84,8 +85,9 @@ export interface EventPayloads {
     text: string;
   };
   [EventType.CLIPBOARD_COPIED]: {
-    text: string;
-    format: 'plain' | 'rich';
+    text?: string;
+    path?: string;
+    format: 'plain' | 'rich' | 'image';
     timestamp: Date;
   };
   [EventType.SYSTEM_ERROR]: {

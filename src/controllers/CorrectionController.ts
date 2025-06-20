@@ -51,8 +51,6 @@ export class CorrectionController {
   private providers: Map<string, AIProvider> = new Map();
   private activeRequests: Map<string, CorrectionRequest> = new Map();
   private currentMode: CorrectionMode = 'business';
-  private isProcessing: boolean = false;
-  private settings: AppSettings | null = null;
   private options: CorrectionOptions = {
     autoCorrect: true,
     autoCopy: true,
@@ -135,7 +133,6 @@ export class CorrectionController {
    * 設定を更新
    */
   updateSettings(settings: AppSettings): void {
-    this.settings = settings;
     this.currentMode = settings.defaultMode;
     eventBus.emit(EventType.SETTINGS_CHANGED, settings);
   }
@@ -336,17 +333,17 @@ export class CorrectionController {
     return result;
   }
   
-  private applyAcademicCorrections(text: string, changes: CorrectionChange[]): string {
+  private applyAcademicCorrections(text: string, _changes: CorrectionChange[]): string {
     // Academic style corrections
     return text + '\n\n（学術的な添削が適用されました）';
   }
   
-  private applyCasualCorrections(text: string, changes: CorrectionChange[]): string {
+  private applyCasualCorrections(text: string, _changes: CorrectionChange[]): string {
     // Casual style corrections
     return text + '\n\n（カジュアルな添削が適用されました）';
   }
   
-  private applyPresentationCorrections(text: string, changes: CorrectionChange[]): string {
+  private applyPresentationCorrections(text: string, _changes: CorrectionChange[]): string {
     // Presentation style corrections
     return text + '\n\n（プレゼンテーション向けの添削が適用されました）';
   }

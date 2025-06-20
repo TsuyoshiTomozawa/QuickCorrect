@@ -10,7 +10,7 @@ import { ErrorCode } from '../types/interfaces';
 
 export class HotkeyController {
   private currentHotkey: string;
-  private isRegistered: boolean = false;
+  private isHotkeyRegistered: boolean = false;
   private readonly defaultHotkey: string;
   private registeredHotkeys: Map<string, () => void> = new Map();
   private previousClipboard: string = '';
@@ -92,7 +92,7 @@ export class HotkeyController {
   async register(hotkey?: string): Promise<boolean> {
     try {
       // 既存のホットキーを解除
-      if (this.isRegistered) {
+      if (this.isHotkeyRegistered) {
         await this.unregister();
       }
 
@@ -121,7 +121,7 @@ export class HotkeyController {
 
       if (registered) {
         this.currentHotkey = keyToRegister;
-        this.isRegistered = true;
+        this.isHotkeyRegistered = true;
         
         eventBus.emit(EventType.HOTKEY_REGISTERED, {
           hotkey: keyToRegister,
@@ -337,9 +337,9 @@ export class HotkeyController {
    */
   async unregister(): Promise<boolean> {
     try {
-      if (this.isRegistered && this.currentHotkey) {
+      if (this.isHotkeyRegistered && this.currentHotkey) {
         globalShortcut.unregister(this.currentHotkey);
-        this.isRegistered = false;
+        this.isHotkeyRegistered = false;
         
         eventBus.emit(EventType.HOTKEY_UNREGISTERED, {
           hotkey: this.currentHotkey,
@@ -367,7 +367,7 @@ export class HotkeyController {
    */
   unregisterAll(): void {
     globalShortcut.unregisterAll();
-    this.isRegistered = false;
+    this.isHotkeyRegistered = false;
     this.registeredHotkeys.clear();
   }
 
@@ -381,8 +381,8 @@ export class HotkeyController {
   /**
    * 登録状態を取得
    */
-  isHotkeyRegistered(): boolean {
-    return this.isRegistered;
+  getRegistrationStatus(): boolean {
+    return this.isHotkeyRegistered;
   }
 
   /**

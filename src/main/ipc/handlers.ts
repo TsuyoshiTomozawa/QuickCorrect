@@ -9,7 +9,6 @@ import { ipcMain, clipboard, app, systemPreferences } from 'electron';
 import * as os from 'os';
 import { 
   CorrectionMode, 
-  CorrectionResult,
   CorrectionHistory,
   AppSettings 
 } from '../../types/interfaces';
@@ -58,7 +57,7 @@ export async function initializeIPCHandlers(): Promise<void> {
  * Register text correction related handlers
  */
 function registerCorrectionHandlers(): void {
-  ipcMain.handle('correct-text', async (event, text: string, mode: string) => {
+  ipcMain.handle('correct-text', async (_event, text: string, mode: string) => {
     try {
       // Validate input
       const validation = validateCorrectionRequest({ text, mode });
@@ -115,7 +114,7 @@ function registerSettingsHandlers(): void {
     }
   });
 
-  ipcMain.handle('save-settings', async (event, settings: Partial<AppSettings>) => {
+  ipcMain.handle('save-settings', async (_event, settings: Partial<AppSettings>) => {
     try {
       // Validate settings
       const validation = validateSettings(settings);
@@ -156,7 +155,7 @@ function registerSettingsHandlers(): void {
  * Register history related handlers
  */
 function registerHistoryHandlers(): void {
-  ipcMain.handle('get-history', async (event, limit?: number) => {
+  ipcMain.handle('get-history', async (_event, limit?: number) => {
     try {
       return await historyManager.getHistory(limit);
     } catch (error: any) {
@@ -169,7 +168,7 @@ function registerHistoryHandlers(): void {
     }
   });
 
-  ipcMain.handle('save-to-history', async (event, history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => {
+  ipcMain.handle('save-to-history', async (_event, history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => {
     try {
       const id = await historyManager.addEntry(history);
       return { success: true, id };
@@ -183,7 +182,7 @@ function registerHistoryHandlers(): void {
     }
   });
 
-  ipcMain.handle('delete-history', async (event, id: string) => {
+  ipcMain.handle('delete-history', async (_event, id: string) => {
     try {
       return await historyManager.deleteEntry(id);
     } catch (error: any) {
@@ -210,7 +209,7 @@ function registerHistoryHandlers(): void {
     }
   });
 
-  ipcMain.handle('search-history', async (event, options: any) => {
+  ipcMain.handle('search-history', async (_event, options: any) => {
     try {
       return await historyManager.searchHistory(options);
     } catch (error: any) {
@@ -236,7 +235,7 @@ function registerHistoryHandlers(): void {
     }
   });
 
-  ipcMain.handle('export-history', async (event, format: 'json' | 'csv') => {
+  ipcMain.handle('export-history', async (_event, format: 'json' | 'csv') => {
     try {
       const exportPath = path.join(app.getPath('downloads'), `quickcorrect-history-${Date.now()}.${format}`);
       await historyManager.exportHistory(exportPath, format);
@@ -256,7 +255,7 @@ function registerHistoryHandlers(): void {
  * Register clipboard related handlers
  */
 function registerClipboardHandlers(): void {
-  ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
+  ipcMain.handle('copy-to-clipboard', async (_event, text: string) => {
     try {
       clipboard.writeText(text);
       return true;

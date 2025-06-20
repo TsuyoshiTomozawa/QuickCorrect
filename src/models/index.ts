@@ -19,6 +19,10 @@ export type {
   CorrectionChange 
 } from '../types/interfaces';
 
+// Import needed types for ProviderFactory
+import { AIProvider, AIProviderConfig } from './providers/AIProvider';
+import { OpenAIProvider } from './providers/OpenAIProvider';
+
 // Provider Factory for easy instantiation
 export class ProviderFactory {
   static createProvider(

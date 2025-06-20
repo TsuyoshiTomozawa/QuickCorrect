@@ -143,7 +143,7 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.removeAllListeners(IPC_CHANNELS.TEXT_SELECTED);
     
     // Add the new listener
-    ipcRenderer.on(IPC_CHANNELS.TEXT_SELECTED, (event, text: string) => {
+    ipcRenderer.on(IPC_CHANNELS.TEXT_SELECTED, (_event, text: string) => {
       callback(text);
     });
   },
@@ -225,8 +225,8 @@ const electronAPI: ElectronAPI = {
       IPC_CHANNELS.TEXT_SELECTED
     ];
     
-    if (validChannels.includes(channel)) {
-      ipcRenderer.on(channel, (event, ...args) => callback(...args));
+    if (validChannels.includes(channel as any)) {
+      ipcRenderer.on(channel, (_event, ...args) => callback(...args));
     } else {
       console.warn(`Attempted to listen to unauthorized channel: ${channel}`);
     }
@@ -240,8 +240,8 @@ const electronAPI: ElectronAPI = {
       IPC_CHANNELS.WORKFLOW_ERROR
     ];
     
-    if (validChannels.includes(channel)) {
-      ipcRenderer.once(channel, (event, ...args) => callback(...args));
+    if (validChannels.includes(channel as any)) {
+      ipcRenderer.once(channel, (_event, ...args) => callback(...args));
     } else {
       console.warn(`Attempted to listen once to unauthorized channel: ${channel}`);
     }

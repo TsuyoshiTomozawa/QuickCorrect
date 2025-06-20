@@ -32,8 +32,6 @@ export enum WorkflowStep {
 }
 
 export class WorkflowOrchestrator {
-  private hotkeyController: HotkeyController;
-  private clipboardController: ClipboardController;
   private correctionController: CorrectionController;
   private mainWindow: BrowserWindow | null = null;
   
@@ -47,12 +45,10 @@ export class WorkflowOrchestrator {
   };
 
   constructor(
-    hotkeyController: HotkeyController,
-    clipboardController: ClipboardController,
+    _hotkeyController: HotkeyController,
+    _clipboardController: ClipboardController,
     correctionController: CorrectionController
   ) {
-    this.hotkeyController = hotkeyController;
-    this.clipboardController = clipboardController;
     this.correctionController = correctionController;
     
     this.setupWorkflowListeners();

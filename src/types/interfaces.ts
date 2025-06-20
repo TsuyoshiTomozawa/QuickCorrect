@@ -1,1 +1,229 @@
-/**\n * QuickCorrect - Type Definitions\n * \n * This file contains all TypeScript interfaces and types used throughout the application.\n */\n\n// Correction-related types\nexport interface CorrectionResult {\n  text: string;\n  explanation?: string;\n  changes: CorrectionChange[];\n  confidence: number;\n  processingTime: number;\n  model: string;\n}\n\nexport interface CorrectionChange {\n  original: string;\n  corrected: string;\n  reason: string;\n  position: {\n    start: number;\n    end: number;\n  };\n}\n\nexport type CorrectionMode = 'business' | 'academic' | 'casual' | 'presentation';\n\n// History-related types\nexport interface CorrectionHistory {\n  id: string;\n  originalText: string;\n  correctedText: string;\n  mode: CorrectionMode;\n  timestamp: Date;\n  model: string;\n  favorite: boolean;\n}\n\n// Settings-related types\nexport interface AppSettings {\n  apiKeys: {\n    openai?: string;\n    anthropic?: string;\n    google?: string;\n  };\n  defaultMode: CorrectionMode;\n  hotkey: string;\n  autoCorrect: boolean;\n  autoCopy: boolean;\n  windowSettings: {\n    alwaysOnTop: boolean;\n    opacity: number;\n    position: {\n      x: number;\n      y: number;\n    };\n    size: {\n      width: number;\n      height: number;\n    };\n  };\n  aiSettings: {\n    primaryProvider: 'openai' | 'anthropic' | 'google';\n    temperature: number;\n    maxTokens: number;\n    timeout: number;\n  };\n  privacy: {\n    saveHistory: boolean;\n    analyticsEnabled: boolean;\n  };\n}\n\n// API-related types\nexport interface APIProvider {\n  name: string;\n  displayName: string;\n  isAvailable: boolean;\n  costPerToken: number;\n  maxTokens: number;\n}\n\nexport interface APIUsage {\n  provider: string;\n  tokensUsed: number;\n  requestCount: number;\n  cost: number;\n  date: Date;\n}\n\n// UI-related types\nexport interface WindowState {\n  isVisible: boolean;\n  isMinimized: boolean;\n  isMaximized: boolean;\n  bounds: {\n    x: number;\n    y: number;\n    width: number;\n    height: number;\n  };\n}\n\nexport interface Theme {\n  name: string;\n  colors: {\n    primary: string;\n    secondary: string;\n    background: string;\n    surface: string;\n    text: string;\n    textSecondary: string;\n    border: string;\n    success: string;\n    warning: string;\n    error: string;\n  };\n  typography: {\n    fontFamily: string;\n    fontSize: {\n      small: string;\n      medium: string;\n      large: string;\n    };\n  };\n  spacing: {\n    small: string;\n    medium: string;\n    large: string;\n  };\n}\n\n// Error types\nexport interface AppError {\n  code: string;\n  message: string;\n  details?: any;\n  timestamp: Date;\n}\n\nexport type ErrorCode = \n  | 'API_ERROR'\n  | 'NETWORK_ERROR'\n  | 'VALIDATION_ERROR'\n  | 'PERMISSION_ERROR'\n  | 'HOTKEY_ERROR'\n  | 'STORAGE_ERROR'\n  | 'UNKNOWN_ERROR';\n\n// IPC types for Electron communication\nexport interface ElectronAPI {\n  // Text correction\n  correctText: (text: string, mode: CorrectionMode) => Promise<CorrectionResult>;\n  \n  // Settings\n  getSettings: () => Promise<AppSettings>;\n  saveSettings: (settings: Partial<AppSettings>) => Promise<boolean>;\n  \n  // History\n  getHistory: (limit?: number) => Promise<CorrectionHistory[]>;\n  saveToHistory: (history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => Promise<boolean>;\n  deleteHistory: (id: string) => Promise<boolean>;\n  clearHistory: () => Promise<boolean>;\n  \n  // Window controls\n  hideWindow: () => void;\n  minimizeWindow: () => void;\n  closeWindow: () => void;\n  \n  // Events\n  onTextSelected: (callback: (text: string) => void) => void;\n  removeAllListeners: (channel: string) => void;\n  \n  // Clipboard\n  copyToClipboard: (text: string) => Promise<boolean>;\n  getClipboardText: () => Promise<string>;\n  \n  // System\n  getSystemInfo: () => Promise<SystemInfo>;\n  checkPermissions: () => Promise<PermissionStatus>;\n}\n\nexport interface SystemInfo {\n  platform: 'win32' | 'darwin' | 'linux';\n  version: string;\n  arch: string;\n  memory: {\n    total: number;\n    used: number;\n  };\n}\n\nexport interface PermissionStatus {\n  accessibility: boolean;\n  microphone: boolean;\n  camera: boolean;\n  notifications: boolean;\n}\n\n// Utility types\nexport type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;\nexport type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;\n\n// Component prop types\nexport interface BaseComponentProps {\n  className?: string;\n  style?: React.CSSProperties;\n  children?: React.ReactNode;\n}\n\n// Global declarations for window object\ndeclare global {\n  interface Window {\n    electronAPI: ElectronAPI;\n  }\n}\n\nexport {};
+/**
+ * QuickCorrect - Type Definitions
+ * 
+ * This file contains all TypeScript interfaces and types used throughout the application.
+ */
+
+// Correction-related types
+export interface CorrectionResult {
+  text: string;
+  explanation?: string;
+  changes: CorrectionChange[];
+  confidence: number;
+  processingTime: number;
+  model: string;
+}
+
+export interface CorrectionChange {
+  original: string;
+  corrected: string;
+  reason: string;
+  position: {
+    start: number;
+    end: number;
+  };
+}
+
+export type CorrectionMode = 'business' | 'academic' | 'casual' | 'presentation';
+
+// History-related types
+export interface CorrectionHistory {
+  id: string;
+  originalText: string;
+  correctedText: string;
+  mode: CorrectionMode;
+  timestamp: Date;
+  model: string;
+  favorite: boolean;
+}
+
+// Settings-related types
+export interface AppSettings {
+  apiKeys: {
+    openai?: string;
+    anthropic?: string;
+    google?: string;
+  };
+  defaultMode: CorrectionMode;
+  hotkey: string;
+  autoCorrect: boolean;
+  autoCopy: boolean;
+  windowSettings: {
+    alwaysOnTop: boolean;
+    opacity: number;
+    position: {
+      x: number;
+      y: number;
+    };
+    size: {
+      width: number;
+      height: number;
+    };
+  };
+  aiSettings: {
+    primaryProvider: 'openai' | 'anthropic' | 'google';
+    temperature: number;
+    maxTokens: number;
+    timeout: number;
+  };
+  privacy: {
+    saveHistory: boolean;
+    analyticsEnabled: boolean;
+  };
+}
+
+// API-related types
+export interface APIProvider {
+  name: string;
+  displayName: string;
+  isAvailable: boolean;
+  costPerToken: number;
+  maxTokens: number;
+}
+
+export interface APIUsage {
+  provider: string;
+  tokensUsed: number;
+  requestCount: number;
+  cost: number;
+  date: Date;
+}
+
+// UI-related types
+export interface WindowState {
+  isVisible: boolean;
+  isMinimized: boolean;
+  isMaximized: boolean;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface Theme {
+  name: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    text: string;
+    textSecondary: string;
+    border: string;
+    success: string;
+    warning: string;
+    error: string;
+  };
+  typography: {
+    fontFamily: string;
+    fontSize: {
+      small: string;
+      medium: string;
+      large: string;
+    };
+  };
+  spacing: {
+    small: string;
+    medium: string;
+    large: string;
+  };
+}
+
+// Error types
+export interface AppError {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp: Date;
+}
+
+export type ErrorCode = 
+  | 'API_ERROR'
+  | 'NETWORK_ERROR'
+  | 'VALIDATION_ERROR'
+  | 'PERMISSION_ERROR'
+  | 'HOTKEY_ERROR'
+  | 'STORAGE_ERROR'
+  | 'UNKNOWN_ERROR';
+
+// IPC types for Electron communication
+export interface ElectronAPI {
+  // Text correction
+  correctText: (text: string, mode: CorrectionMode) => Promise<CorrectionResult>;
+  
+  // Settings
+  getSettings: () => Promise<AppSettings>;
+  saveSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
+  
+  // History
+  getHistory: (limit?: number) => Promise<CorrectionHistory[]>;
+  saveToHistory: (history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => Promise<boolean>;
+  deleteHistory: (id: string) => Promise<boolean>;
+  clearHistory: () => Promise<boolean>;
+  
+  // Window controls
+  hideWindow: () => void;
+  minimizeWindow: () => void;
+  closeWindow: () => void;
+  
+  // Events
+  onTextSelected: (callback: (text: string) => void) => void;
+  removeAllListeners: (channel: string) => void;
+  
+  // Clipboard
+  copyToClipboard: (text: string) => Promise<boolean>;
+  getClipboardText: () => Promise<string>;
+  
+  // System
+  getSystemInfo: () => Promise<SystemInfo>;
+  checkPermissions: () => Promise<PermissionStatus>;
+  
+  // Statistics
+  getStatistics: () => Promise<any>;
+  
+  // Debug
+  getDebugInfo?: () => Promise<any>;
+  
+  // Event listeners
+  on?: (channel: string, callback: Function) => void;
+  once?: (channel: string, callback: Function) => void;
+}
+
+export interface SystemInfo {
+  platform: 'win32' | 'darwin' | 'linux';
+  version: string;
+  arch: string;
+  memory: {
+    total: number;
+    used: number;
+  };
+}
+
+export interface PermissionStatus {
+  accessibility: boolean;
+  microphone: boolean;
+  camera: boolean;
+  notifications: boolean;
+}
+
+// Utility types
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+// Component prop types
+export interface BaseComponentProps {
+  className?: string;
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
+}
+
+// Global declarations for window object
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+
+export {};

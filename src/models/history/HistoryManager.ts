@@ -6,7 +6,6 @@
 
 import { CorrectionHistory, CorrectionMode } from '../../types/interfaces';
 import { Database } from 'sqlite3';
-import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -29,7 +28,7 @@ export interface HistoryStats {
 }
 
 export class HistoryManager {
-  private db: Database;
+  private db!: Database; // Using definite assignment assertion since it's initialized in initialize()
   private dbPath: string;
   private initialized: boolean = false;
 
