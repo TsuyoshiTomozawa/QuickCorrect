@@ -265,11 +265,21 @@ function setupIPC(): void {
   // 手動テキスト添削
   ipcMain.handle('correct-text', async (event, text: string, mode?: CorrectionMode) => {
     try {
-      await workflowOrchestrator.processManualText(text, mode);
-      return { success: true };
+      if (workflowOrchestrator) {
+        await workflowOrchestrator.processManualText(text, mode);
+        return { success: true };
+      } else {
+        // ワークフローが初期化されていない場合は直接実行
+        const result = await correctionController.correctText(text, mode || 'business');
+        return result;
+      }
     } catch (error) {
       console.error('Correction error:', error);
-      return { success: false, error: error.message };
+      if (workflowOrchestrator) {
+        return { success: false, error: (error as Error).message };
+      } else {
+        throw error;
+      }
     }
   });
 
@@ -278,8 +288,8 @@ function setupIPC(): void {
     const savedSettings = await settingsManager.getSettings();
     return {
       ...savedSettings,
-      hotkey: hotkeyController.getCurrentHotkey(),
-      defaultMode: correctionController.getMode()
+      hotkey: hotkeyController?.getCurrentHotkey() || savedSettings.hotkey,
+      defaultMode: correctionController?.getMode() || savedSettings.defaultMode
     } as AppSettings;
   });
 
@@ -294,13 +304,13 @@ function setupIPC(): void {
       });
       
       // ホットキーの更新
-      if (settings.hotkey && settings.hotkey !== hotkeyController.getCurrentHotkey()) {
+      if (settings.hotkey && hotkeyController && settings.hotkey !== hotkeyController.getCurrentHotkey()) {
         await hotkeyController.register(settings.hotkey);
       }
       
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   });
 
@@ -321,12 +331,21 @@ function setupIPC(): void {
     mainWindow?.close();
   });
 
+  // クリップボード操作（コントローラー経由）
+  ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
+    return await clipboardController.copyToClipboard(text);
+  });
+
+  ipcMain.handle('get-clipboard-text', async () => {
+    return await clipboardController.getClipboardText();
+  });
+
   // イベント統計取得
   ipcMain.handle('get-statistics', () => {
     return {
-      workflow: workflowOrchestrator.getWorkflowStatistics(),
+      workflow: workflowOrchestrator?.getWorkflowStatistics() || {},
       events: Object.fromEntries(eventBus.getEventStatistics()),
-      health: Object.fromEntries(correctionController.checkProvidersHealth())
+      health: correctionController ? Object.fromEntries(correctionController.checkProvidersHealth()) : {}
     };
   });
 
@@ -334,9 +353,9 @@ function setupIPC(): void {
   ipcMain.handle('debug-info', () => {
     eventBus.debug();
     return {
-      workflowState: workflowOrchestrator.getWorkflowState(),
-      hotkeyRegistered: hotkeyController.isHotkeyRegistered(),
-      activeRequests: correctionController.getActiveRequestCount()
+      workflowState: workflowOrchestrator?.getWorkflowState() || 'not-initialized',
+      hotkeyRegistered: hotkeyController?.isHotkeyRegistered() || false,
+      activeRequests: correctionController?.getActiveRequestCount() || 0
     };
   });
 
@@ -350,6 +369,36 @@ function setupIPC(): void {
       });
     }
   });
+}
+
+/**
+ * 選択されたテキストでウィンドウを表示
+ */
+async function showWindowWithSelectedText(): Promise<void> {
+  try {
+    // 選択されたテキストを取得
+    const selectedText = await clipboardController.getSelectedText();
+    
+    if (selectedText && selectedText.trim()) {
+      // ウィンドウが存在しない場合は作成
+      if (!mainWindow) {
+        await createWindow();
+      }
+      
+      // ウィンドウを表示
+      if (mainWindow) {
+        if (!mainWindow.isVisible()) {
+          mainWindow.show();
+        }
+        mainWindow.focus();
+        
+        // 選択されたテキストをレンダラーに送信
+        mainWindow.webContents.send('text-selected', selectedText);
+      }
+    }
+  } catch (error) {
+    console.error('Error processing selected text:', error);
+  }
 }
 
 /**

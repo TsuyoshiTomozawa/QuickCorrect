@@ -6,12 +6,25 @@
 
 import { clipboard, nativeImage } from 'electron';
 import { eventBus, EventType } from '../services/EventBus';
-import { CorrectionResult, ErrorCode } from '../types/interfaces';
+import { CorrectionResult, CorrectionHistory, ErrorCode } from '../types/interfaces';
+
+export interface ClipboardEvent {
+  type: 'copy' | 'paste' | 'changed';
+  content: string;
+  format: 'text' | 'html' | 'rtf';
+  timestamp: Date;
+}
+
+export interface ClipboardOptions {
+  autoFormat: boolean;
+  preserveFormatting: boolean;
+  notifyOnCopy: boolean;
+}
 
 export class ClipboardController {
   private watchInterval: NodeJS.Timeout | null = null;
   private lastClipboardContent: string = '';
-  private options = {
+  private options: ClipboardOptions = {
     autoFormat: true,
     preserveFormatting: true,
     notifyOnCopy: true
@@ -39,6 +52,52 @@ export class ClipboardController {
         this.updateOptions(payload.clipboard);
       }
     });
+  }
+
+  /**
+   * Get currently selected text from clipboard
+   * (Preload API互換メソッド)
+   */
+  async getSelectedText(): Promise<string> {
+    try {
+      // 現在のクリップボードの内容を保存
+      const previousContent = clipboard.readText();
+      
+      // プラットフォーム別のコピーコマンドを実行
+      await this.triggerCopy();
+      
+      // 少し待つ
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // 新しいクリップボードの内容を取得
+      const selectedText = clipboard.readText();
+      
+      // 元のクリップボードの内容を復元
+      if (previousContent !== selectedText) {
+        setTimeout(() => {
+          clipboard.writeText(previousContent);
+        }, 100);
+      }
+      
+      return selectedText;
+    } catch (error) {
+      console.error('選択テキスト取得エラー:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Copy text to clipboard (Preload API互換メソッド)
+   */
+  async copyToClipboard(text: string): Promise<boolean> {
+    return await this.copyText(text);
+  }
+
+  /**
+   * Get current clipboard text (Preload API互換メソッド)
+   */
+  async getClipboardText(): Promise<string> {
+    return this.readText();
   }
 
   /**
@@ -129,33 +188,21 @@ export class ClipboardController {
   }
 
   /**
-   * 選択されたテキストを取得（ホットキー処理用）
+   * 履歴アイテムをクリップボードにコピー
    */
-  async getSelectedText(): Promise<string> {
+  async copyFromHistory(historyItem: CorrectionHistory): Promise<boolean> {
     try {
-      // 現在のクリップボードの内容を保存
-      const previousContent = clipboard.readText();
-      
-      // プラットフォーム別のコピーコマンドを実行
-      await this.triggerCopy();
-      
-      // 少し待つ
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // 新しいクリップボードの内容を取得
-      const selectedText = clipboard.readText();
-      
-      // 元のクリップボードの内容を復元
-      if (previousContent !== selectedText) {
-        setTimeout(() => {
-          clipboard.writeText(previousContent);
-        }, 100);
-      }
-      
-      return selectedText;
+      return await this.copyText(historyItem.correctedText);
     } catch (error) {
-      console.error('選択テキスト取得エラー:', error);
-      return '';
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '履歴からのコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+      return false;
     }
   }
 
@@ -201,6 +248,48 @@ export class ClipboardController {
   }
 
   /**
+   * クリップボードからリッチテキストを読み取り
+   */
+  readRichText(): { text: string; html: string; rtf: string } {
+    try {
+      return {
+        text: clipboard.readText(),
+        html: clipboard.readHTML(),
+        rtf: clipboard.readRTF()
+      };
+    } catch (error) {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'リッチテキストの読み取りに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+      return { text: '', html: '', rtf: '' };
+    }
+  }
+
+  /**
+   * クリップボードをクリア
+   */
+  clear(): void {
+    try {
+      clipboard.clear();
+      eventBus.emit(EventType.CLIPBOARD_CLEARED, { timestamp: new Date() });
+    } catch (error) {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'クリップボードのクリアに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+    }
+  }
+
+  /**
    * クリップボードの変更を監視開始
    */
   startWatching(interval: number = 500): void {
@@ -229,6 +318,54 @@ export class ClipboardController {
     if (this.watchInterval) {
       clearInterval(this.watchInterval);
       this.watchInterval = null;
+    }
+  }
+
+  /**
+   * 画像をクリップボードにコピー
+   */
+  async copyImage(imagePath: string): Promise<boolean> {
+    try {
+      const image = nativeImage.createFromPath(imagePath);
+      clipboard.writeImage(image);
+      
+      eventBus.emit(EventType.CLIPBOARD_COPIED, {
+        path: imagePath,
+        format: 'image',
+        timestamp: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '画像のコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+      return false;
+    }
+  }
+
+  /**
+   * クリップボードから画像を読み取り
+   */
+  readImage(): nativeImage.NativeImage | null {
+    try {
+      const image = clipboard.readImage();
+      return image.isEmpty() ? null : image;
+    } catch (error) {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '画像の読み取りに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+      return null;
     }
   }
 
@@ -292,8 +429,15 @@ export class ClipboardController {
   /**
    * オプションを更新
    */
-  updateOptions(options: Partial<typeof this.options>): void {
+  updateOptions(options: Partial<ClipboardOptions>): void {
     this.options = { ...this.options, ...options };
+  }
+
+  /**
+   * 現在のオプションを取得
+   */
+  getOptions(): ClipboardOptions {
+    return { ...this.options };
   }
 
   /**

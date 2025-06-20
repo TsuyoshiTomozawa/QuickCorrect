@@ -12,6 +12,7 @@ export class HotkeyController {
   private currentHotkey: string;
   private isRegistered: boolean = false;
   private readonly defaultHotkey: string;
+  private registeredHotkeys: Map<string, () => void> = new Map();
   private previousClipboard: string = '';
   
   constructor() {
@@ -30,6 +31,59 @@ export class HotkeyController {
         this.register(payload.hotkey);
       }
     });
+  }
+
+  /**
+   * Register a global hotkey (簡易版API互換メソッド)
+   */
+  registerHotkey(accelerator: string, callback: () => void): boolean {
+    try {
+      // Unregister if already exists
+      if (this.registeredHotkeys.has(accelerator)) {
+        this.unregisterHotkey(accelerator);
+      }
+      
+      const success = globalShortcut.register(accelerator, callback);
+      
+      if (success) {
+        this.registeredHotkeys.set(accelerator, callback);
+        console.log(`Hotkey registered: ${accelerator}`);
+      } else {
+        console.error(`Failed to register hotkey: ${accelerator}`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Error registering hotkey:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Unregister a specific hotkey (簡易版API互換メソッド)
+   */
+  unregisterHotkey(accelerator: string): void {
+    try {
+      globalShortcut.unregister(accelerator);
+      this.registeredHotkeys.delete(accelerator);
+      console.log(`Hotkey unregistered: ${accelerator}`);
+    } catch (error) {
+      console.error('Error unregistering hotkey:', error);
+    }
+  }
+
+  /**
+   * Check if a hotkey is registered (簡易版API互換メソッド)
+   */
+  isRegistered(accelerator: string): boolean {
+    return globalShortcut.isRegistered(accelerator);
+  }
+
+  /**
+   * Get all registered hotkeys (簡易版API互換メソッド)
+   */
+  getRegisteredHotkeys(): string[] {
+    return Array.from(this.registeredHotkeys.keys());
   }
 
   /**
@@ -314,6 +368,7 @@ export class HotkeyController {
   unregisterAll(): void {
     globalShortcut.unregisterAll();
     this.isRegistered = false;
+    this.registeredHotkeys.clear();
   }
 
   /**

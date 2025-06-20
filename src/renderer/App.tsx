@@ -1,1 +1,273 @@
-/**\n * QuickCorrect - Main React Application Component\n * \n * This is the root component of the React application that runs in the renderer process.\n * It manages the overall application state and renders the main UI components.\n */\n\nimport React, { useState, useEffect } from 'react';\nimport styled from 'styled-components';\nimport { motion, AnimatePresence } from 'framer-motion';\nimport { TextInput, TextOutput } from './components';\n// Note: Additional component imports will be added as components are created\n// import { Header } from './components/Header';\n// import { StatusBar } from './components/StatusBar';\n// import { SettingsPanel } from './components/SettingsPanel';\n// import { HistoryPanel } from './components/HistoryPanel';\n// import { LoadingSpinner } from './components/LoadingSpinner';\n// import { ErrorMessage } from './components/ErrorMessage';\n// import { GlobalStyles } from './styles/GlobalStyles';\nimport { CorrectionResult } from '../types/interfaces';\n\n// Styled components\nconst AppContainer = styled.div`\n  width: 100%;\n  height: 100vh;\n  display: flex;\n  flex-direction: column;\n  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;\n`;\n\nconst MainContent = styled.div`\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  overflow: hidden;\n`;\n\nconst TextPanelContainer = styled.div`\n  flex: 1;\n  display: flex;\n  gap: 1px;\n  background: #e1e5e9;\n`;\n\nconst SidePanel = styled(motion.div)`\n  position: absolute;\n  top: 0;\n  right: 0;\n  width: 300px;\n  height: 100%;\n  background: white;\n  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);\n  z-index: 1000;\n`;\n\n// Removed PlaceholderPanel as we're now using actual components\n\n// Types\ninterface AppState {\n  inputText: string;\n  outputText: string;\n  isLoading: boolean;\n  error: string | null;\n  correctionMode: 'business' | 'academic' | 'casual' | 'presentation';\n  showSettings: boolean;\n  showHistory: boolean;\n  correctionResult: CorrectionResult | null;\n}\n\nconst App: React.FC = () => {\n  const [state, setState] = useState<AppState>({\n    inputText: '',\n    outputText: '',\n    isLoading: false,\n    error: null,\n    correctionMode: 'business',\n    showSettings: false,\n    showHistory: false,\n    correctionResult: null\n  });\n\n  // Handle text selection from main process\n  useEffect(() => {\n    const handleTextSelected = (text: string) => {\n      setState(prev => ({\n        ...prev,\n        inputText: text,\n        outputText: '',\n        error: null\n      }));\n      \n      // Auto-start correction if text is provided\n      if (text.trim()) {\n        handleCorrectText(text);\n      }\n    };\n\n    // Listen for selected text from main process\n    // Note: electronAPI will be available after preload script is implemented\n    if (window.electronAPI) {\n      window.electronAPI.onTextSelected(handleTextSelected);\n    }\n\n    return () => {\n      // Clean up listeners\n      if (window.electronAPI) {\n        window.electronAPI.removeAllListeners('text-selected');\n      }\n    };\n  }, []);\n\n  // Handle text correction\n  const handleCorrectText = async (text?: string) => {\n    const textToCorrect = text || state.inputText;\n    \n    if (!textToCorrect.trim()) {\n      setState(prev => ({ ...prev, error: 'テキストを入力してください' }));\n      return;\n    }\n\n    setState(prev => ({ \n      ...prev, \n      isLoading: true, \n      error: null,\n      outputText: ''\n    }));\n\n    try {\n      if (window.electronAPI) {\n        const result = await window.electronAPI.correctText(textToCorrect, state.correctionMode);\n        \n        setState(prev => ({\n          ...prev,\n          outputText: result.text,\n          correctionResult: result,\n          isLoading: false\n        }));\n      }\n    } catch (error) {\n      setState(prev => ({\n        ...prev,\n        error: error instanceof Error ? error.message : '添削に失敗しました',\n        isLoading: false\n      }));\n    }\n  };\n\n  // Handle input text change\n  const handleInputChange = (text: string) => {\n    setState(prev => ({\n      ...prev,\n      inputText: text,\n      error: null\n    }));\n  };\n\n  // Handle correction mode change\n  const handleModeChange = (mode: AppState['correctionMode']) => {\n    setState(prev => ({ ...prev, correctionMode: mode }));\n  };\n\n  // Handle settings toggle\n  const handleSettingsToggle = () => {\n    setState(prev => ({\n      ...prev,\n      showSettings: !prev.showSettings,\n      showHistory: false\n    }));\n  };\n\n  // Handle history toggle\n  const handleHistoryToggle = () => {\n    setState(prev => ({\n      ...prev,\n      showHistory: !prev.showHistory,\n      showSettings: false\n    }));\n  };\n\n  // Handle window controls\n  const handleMinimize = () => {\n    if (window.electronAPI) {\n      window.electronAPI.hideWindow();\n    }\n  };\n\n  const handleClose = () => {\n    if (window.electronAPI) {\n      window.electronAPI.closeWindow();\n    }\n  };\n\n  return (\n    <AppContainer>\n      {/* Placeholder Header */}\n      <div style={{ \n        height: '60px', \n        background: 'white', \n        display: 'flex', \n        alignItems: 'center', \n        justifyContent: 'space-between',\n        padding: '0 16px',\n        borderBottom: '1px solid #e1e5e9'\n      }}>\n        <h1 style={{ margin: 0, fontSize: '20px', color: '#333' }}>QuickCorrect</h1>\n        <div>\n          <button onClick={handleSettingsToggle} style={{ marginRight: '8px' }}>⚙️</button>\n          <button onClick={handleHistoryToggle} style={{ marginRight: '8px' }}>📋</button>\n          <button onClick={handleMinimize} style={{ marginRight: '8px' }}>➖</button>\n          <button onClick={handleClose}>✕</button>\n        </div>\n      </div>\n      \n      <MainContent>\n        <TextPanelContainer>\n          <TextInput\n            value={state.inputText}\n            onChange={handleInputChange}\n            onCorrect={handleCorrectText}\n            isLoading={state.isLoading}\n            correctionMode={state.correctionMode}\n            onModeChange={handleModeChange}\n          />\n          \n          <TextOutput\n            correctionResult={state.correctionResult}\n            isLoading={state.isLoading}\n            error={state.error}\n            onApplyToInput={() => handleInputChange(state.correctionResult?.text || '')}\n          />\n        </TextPanelContainer>\n        \n        {/* Status Bar */}\n        <div style={{\n          height: '30px',\n          background: '#f8f9fa',\n          display: 'flex',\n          alignItems: 'center',\n          padding: '0 16px',\n          fontSize: '12px',\n          color: '#666',\n          borderTop: '1px solid #e1e5e9'\n        }}>\n          文字数: {state.inputText.length} | モード: {state.correctionMode} | 状態: {state.isLoading ? '処理中' : 'スタンバイ'}\n        </div>\n      </MainContent>\n\n      {/* Side Panels - Placeholder */}\n      <AnimatePresence>\n        {state.showSettings && (\n          <SidePanel\n            initial={{ x: 300 }}\n            animate={{ x: 0 }}\n            exit={{ x: 300 }}\n            transition={{ type: 'spring', stiffness: 300, damping: 30 }}\n          >\n            <div style={{ padding: '20px' }}>\n              <h3>設定</h3>\n              <p>設定パネルは後で実装されます</p>\n              <button onClick={() => setState(prev => ({ ...prev, showSettings: false }))}>閉じる</button>\n            </div>\n          </SidePanel>\n        )}\n        \n        {state.showHistory && (\n          <SidePanel\n            initial={{ x: 300 }}\n            animate={{ x: 0 }}\n            exit={{ x: 300 }}\n            transition={{ type: 'spring', stiffness: 300, damping: 30 }}\n          >\n            <div style={{ padding: '20px' }}>\n              <h3>履歴</h3>\n              <p>履歴パネルは後で実装されます</p>\n              <button onClick={() => setState(prev => ({ ...prev, showHistory: false }))}>閉じる</button>\n            </div>\n          </SidePanel>\n        )}\n      </AnimatePresence>\n    </AppContainer>\n  );\n};\n\nexport default App;
+/**
+ * QuickCorrect - Main React Application Component
+ * 
+ * This is the root component of the React application that runs in the renderer process.
+ * It manages the overall application state and renders the main UI components.
+ */
+
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TextInput, TextOutput } from './components';
+import { 
+  useTextSelection, 
+  useWindowControls, 
+  useCorrection, 
+  useSettings, 
+  useHistory,
+  useClipboard 
+} from './hooks';
+import { CorrectionMode } from '../types/interfaces';
+
+// Styled components
+const AppContainer = styled.div`
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+`;
+
+const MainContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const TextPanelContainer = styled.div`
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  background: #e1e5e9;
+`;
+
+const SidePanel = styled(motion.div)`
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+`;
+
+const App: React.FC = () => {
+  // Local state
+  const [inputText, setInputText] = useState('');
+  const [correctionMode, setCorrectionMode] = useState<CorrectionMode>('business');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Use custom hooks
+  const { hideWindow, minimizeWindow, closeWindow } = useWindowControls();
+  const { correctText, isLoading, error, result, clearError } = useCorrection();
+  const { settings, updateSettings } = useSettings();
+  const { history, addToHistory } = useHistory(50);
+  const { copyToClipboard } = useClipboard();
+
+  // Handle text selection from main process
+  useTextSelection((text: string) => {
+    setInputText(text);
+    clearError();
+    
+    // Auto-start correction if enabled in settings
+    if (text.trim() && settings?.autoCorrect) {
+      handleCorrectText(text);
+    }
+  });
+
+  // Update correction mode from settings
+  useEffect(() => {
+    if (settings?.defaultMode) {
+      setCorrectionMode(settings.defaultMode);
+    }
+  }, [settings]);
+
+  // Auto-copy result to clipboard
+  useEffect(() => {
+    if (result && settings?.autoCopy) {
+      copyToClipboard(result.text);
+      
+      // Save to history if enabled
+      if (settings?.privacy.saveHistory) {
+        addToHistory(inputText, result.text, correctionMode, result.model);
+      }
+    }
+  }, [result]);
+
+  // Handle text correction
+  const handleCorrectText = async (text?: string) => {
+    const textToCorrect = text || inputText;
+    
+    if (!textToCorrect.trim()) {
+      return;
+    }
+
+    await correctText(textToCorrect, correctionMode);
+  };
+
+  // Handle input text change
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    clearError();
+  };
+
+  // Handle correction mode change
+  const handleModeChange = (mode: CorrectionMode) => {
+    setCorrectionMode(mode);
+  };
+
+  // Handle settings toggle
+  const handleSettingsToggle = () => {
+    setShowSettings(!showSettings);
+    setShowHistory(false);
+  };
+
+  // Handle history toggle
+  const handleHistoryToggle = () => {
+    setShowHistory(!showHistory);
+    setShowSettings(false);
+  };
+
+  return (
+    <AppContainer>
+      {/* Placeholder Header */}
+      <div style={{ 
+        height: '60px', 
+        background: 'white', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        borderBottom: '1px solid #e1e5e9'
+      }}>
+        <h1 style={{ margin: 0, fontSize: '20px', color: '#333' }}>QuickCorrect</h1>
+        <div>
+          <button onClick={handleSettingsToggle} style={{ marginRight: '8px' }}>⚙️</button>
+          <button onClick={handleHistoryToggle} style={{ marginRight: '8px' }}>📋</button>
+          <button onClick={hideWindow} style={{ marginRight: '8px' }}>➖</button>
+          <button onClick={closeWindow}>✕</button>
+        </div>
+      </div>
+      
+      <MainContent>
+        <TextPanelContainer>
+          <TextInput
+            value={inputText}
+            onChange={handleInputChange}
+            onCorrect={handleCorrectText}
+            isLoading={isLoading}
+            correctionMode={correctionMode}
+            onModeChange={handleModeChange}
+          />
+          
+          <TextOutput
+            correctionResult={result}
+            isLoading={isLoading}
+            error={error}
+            onApplyToInput={() => handleInputChange(result?.text || '')}
+          />
+        </TextPanelContainer>
+        
+        {/* Status Bar */}
+        <div style={{
+          height: '30px',
+          background: '#f8f9fa',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          fontSize: '12px',
+          color: '#666',
+          borderTop: '1px solid #e1e5e9'
+        }}>
+          文字数: {inputText.length} | モード: {correctionMode} | 状態: {isLoading ? '処理中' : 'スタンバイ'}
+        </div>
+      </MainContent>
+
+      {/* Side Panels - Placeholder */}
+      <AnimatePresence>
+        {showSettings && (
+          <SidePanel
+            initial={{ x: 300 }}
+            animate={{ x: 0 }}
+            exit={{ x: 300 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+            <div style={{ padding: '20px' }}>
+              <h3>設定</h3>
+              <div style={{ marginTop: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '10px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={settings?.autoCorrect || false}
+                    onChange={(e) => updateSettings({ autoCorrect: e.target.checked })}
+                  />
+                  {' '}自動添削
+                </label>
+                <label style={{ display: 'block', marginBottom: '10px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={settings?.autoCopy || false}
+                    onChange={(e) => updateSettings({ autoCopy: e.target.checked })}
+                  />
+                  {' '}自動コピー
+                </label>
+                <label style={{ display: 'block', marginBottom: '10px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={settings?.privacy.saveHistory || false}
+                    onChange={(e) => updateSettings({ 
+                      privacy: { ...settings?.privacy, saveHistory: e.target.checked } 
+                    })}
+                  />
+                  {' '}履歴を保存
+                </label>
+              </div>
+              <button onClick={() => setShowSettings(false)}>閉じる</button>
+            </div>
+          </SidePanel>
+        )}
+        
+        {showHistory && (
+          <SidePanel
+            initial={{ x: 300 }}
+            animate={{ x: 0 }}
+            exit={{ x: 300 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+            <div style={{ padding: '20px' }}>
+              <h3>履歴</h3>
+              {history.length > 0 ? (
+                <div style={{ marginTop: '20px', maxHeight: '400px', overflow: 'auto' }}>
+                  {history.map((item, index) => (
+                    <div key={item.id} style={{ 
+                      padding: '10px', 
+                      borderBottom: '1px solid #eee',
+                      fontSize: '12px' 
+                    }}>
+                      <div style={{ fontWeight: 'bold' }}>{item.mode}</div>
+                      <div style={{ color: '#666', marginTop: '4px' }}>
+                        {item.originalText.substring(0, 50)}...
+                      </div>
+                      <div style={{ color: '#28a745', marginTop: '4px' }}>
+                        → {item.correctedText.substring(0, 50)}...
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>履歴がありません</p>
+              )}
+              <button onClick={() => setShowHistory(false)}>閉じる</button>
+            </div>
+          </SidePanel>
+        )}
+      </AnimatePresence>
+    </AppContainer>
+  );
+};
+
+export default App;
