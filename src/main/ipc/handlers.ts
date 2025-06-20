@@ -1,0 +1,358 @@
+/**
+ * IPC Handlers - Main process handlers for IPC communication
+ * 
+ * This module sets up all IPC handlers that bridge the renderer
+ * process with the Model layer and other backend services.
+ */
+
+import { ipcMain, clipboard, app, systemPreferences } from 'electron';
+import * as os from 'os';
+import { 
+  CorrectionMode, 
+  CorrectionResult,
+  CorrectionHistory,
+  AppSettings 
+} from '../../types/interfaces';
+import { ProviderFactory, HistoryManager } from '../../models';
+import { SettingsManager } from '../settings/SettingsManager';
+import { validateCorrectionRequest, validateSettings } from '../validation/validators';
+import * as path from 'path';
+
+// Initialize managers
+let historyManager: HistoryManager;
+let settingsManager: SettingsManager;
+let aiProvider: any;
+
+/**
+ * Initialize IPC handlers and backend services
+ */
+export async function initializeIPCHandlers(): Promise<void> {
+  const userDataPath = app.getPath('userData');
+  
+  // Initialize managers
+  historyManager = new HistoryManager(userDataPath);
+  settingsManager = new SettingsManager(userDataPath);
+  
+  // Initialize history database
+  await historyManager.initialize();
+  
+  // Load settings and initialize AI provider
+  const settings = await settingsManager.getSettings();
+  if (settings.apiKeys?.openai) {
+    aiProvider = ProviderFactory.createProvider('openai', {
+      apiKey: settings.apiKeys.openai,
+      temperature: settings.aiSettings?.temperature,
+      maxTokens: settings.aiSettings?.maxTokens
+    });
+  }
+
+  // Register all IPC handlers
+  registerCorrectionHandlers();
+  registerSettingsHandlers();
+  registerHistoryHandlers();
+  registerClipboardHandlers();
+  registerSystemHandlers();
+}
+
+/**
+ * Register text correction related handlers
+ */
+function registerCorrectionHandlers(): void {
+  ipcMain.handle('correct-text', async (event, text: string, mode: string) => {
+    try {
+      // Validate input
+      const validation = validateCorrectionRequest({ text, mode });
+      if (!validation.valid) {
+        throw new Error(`Validation error: ${validation.errors.join(', ')}`);
+      }
+
+      // Check if AI provider is initialized
+      if (!aiProvider) {
+        throw new Error('AI provider not configured. Please set API key in settings.');
+      }
+
+      // Perform text correction
+      const result = await aiProvider.correctText(text, mode as CorrectionMode);
+
+      // Save to history if enabled
+      const settings = await settingsManager.getSettings();
+      if (settings.privacy?.saveHistory !== false) {
+        await historyManager.addEntry({
+          originalText: text,
+          correctedText: result.text,
+          mode: mode as CorrectionMode,
+          model: result.model,
+          favorite: false
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('Text correction error:', error);
+      throw {
+        code: 'CORRECTION_ERROR',
+        message: error.message || 'Failed to correct text',
+        details: error
+      };
+    }
+  });
+}
+
+/**
+ * Register settings related handlers
+ */
+function registerSettingsHandlers(): void {
+  ipcMain.handle('get-settings', async () => {
+    try {
+      return await settingsManager.getSettings();
+    } catch (error: any) {
+      console.error('Get settings error:', error);
+      throw {
+        code: 'SETTINGS_ERROR',
+        message: 'Failed to retrieve settings',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('save-settings', async (event, settings: Partial<AppSettings>) => {
+    try {
+      // Validate settings
+      const validation = validateSettings(settings);
+      if (!validation.valid) {
+        throw new Error(`Validation error: ${validation.errors.join(', ')}`);
+      }
+
+      // Save settings
+      await settingsManager.updateSettings(settings);
+
+      // Re-initialize AI provider if API key changed
+      if (settings.apiKeys) {
+        const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
+        const apiKey = settings.apiKeys[primaryProvider];
+        
+        if (apiKey) {
+          aiProvider = ProviderFactory.createProvider(primaryProvider, {
+            apiKey,
+            temperature: settings.aiSettings?.temperature,
+            maxTokens: settings.aiSettings?.maxTokens
+          });
+        }
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('Save settings error:', error);
+      throw {
+        code: 'SETTINGS_ERROR',
+        message: 'Failed to save settings',
+        details: error
+      };
+    }
+  });
+}
+
+/**
+ * Register history related handlers
+ */
+function registerHistoryHandlers(): void {
+  ipcMain.handle('get-history', async (event, limit?: number) => {
+    try {
+      return await historyManager.getHistory(limit);
+    } catch (error: any) {
+      console.error('Get history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to retrieve history',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('save-to-history', async (event, history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => {
+    try {
+      const id = await historyManager.addEntry(history);
+      return { success: true, id };
+    } catch (error: any) {
+      console.error('Save history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to save to history',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('delete-history', async (event, id: string) => {
+    try {
+      return await historyManager.deleteEntry(id);
+    } catch (error: any) {
+      console.error('Delete history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to delete history entry',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('clear-history', async () => {
+    try {
+      await historyManager.clearHistory();
+      return true;
+    } catch (error: any) {
+      console.error('Clear history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to clear history',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('search-history', async (event, options: any) => {
+    try {
+      return await historyManager.searchHistory(options);
+    } catch (error: any) {
+      console.error('Search history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to search history',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('get-history-stats', async () => {
+    try {
+      return await historyManager.getStats();
+    } catch (error: any) {
+      console.error('Get history stats error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to get history statistics',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('export-history', async (event, format: 'json' | 'csv') => {
+    try {
+      const exportPath = path.join(app.getPath('downloads'), `quickcorrect-history-${Date.now()}.${format}`);
+      await historyManager.exportHistory(exportPath, format);
+      return { success: true, path: exportPath };
+    } catch (error: any) {
+      console.error('Export history error:', error);
+      throw {
+        code: 'HISTORY_ERROR',
+        message: 'Failed to export history',
+        details: error
+      };
+    }
+  });
+}
+
+/**
+ * Register clipboard related handlers
+ */
+function registerClipboardHandlers(): void {
+  ipcMain.handle('copy-to-clipboard', async (event, text: string) => {
+    try {
+      clipboard.writeText(text);
+      return true;
+    } catch (error: any) {
+      console.error('Copy to clipboard error:', error);
+      throw {
+        code: 'CLIPBOARD_ERROR',
+        message: 'Failed to copy to clipboard',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('get-clipboard-text', async () => {
+    try {
+      return clipboard.readText();
+    } catch (error: any) {
+      console.error('Get clipboard text error:', error);
+      throw {
+        code: 'CLIPBOARD_ERROR',
+        message: 'Failed to read clipboard',
+        details: error
+      };
+    }
+  });
+}
+
+/**
+ * Register system related handlers
+ */
+function registerSystemHandlers(): void {
+  ipcMain.handle('get-system-info', async () => {
+    try {
+      const totalMemory = os.totalmem();
+      const usedMemory = totalMemory - os.freemem();
+
+      return {
+        platform: process.platform,
+        version: os.release(),
+        arch: os.arch(),
+        memory: {
+          total: totalMemory,
+          used: usedMemory
+        }
+      };
+    } catch (error: any) {
+      console.error('Get system info error:', error);
+      throw {
+        code: 'SYSTEM_ERROR',
+        message: 'Failed to get system information',
+        details: error
+      };
+    }
+  });
+
+  ipcMain.handle('check-permissions', async () => {
+    try {
+      const permissions: any = {
+        accessibility: true,
+        microphone: false,
+        camera: false,
+        notifications: true
+      };
+
+      // macOS specific permission checks
+      if (process.platform === 'darwin') {
+        permissions.accessibility = systemPreferences.isTrustedAccessibilityClient(false);
+        
+        // Check other permissions if available
+        if (systemPreferences.getMediaAccessStatus) {
+          permissions.microphone = systemPreferences.getMediaAccessStatus('microphone') === 'granted';
+          permissions.camera = systemPreferences.getMediaAccessStatus('camera') === 'granted';
+        }
+      }
+
+      return permissions;
+    } catch (error: any) {
+      console.error('Check permissions error:', error);
+      throw {
+        code: 'SYSTEM_ERROR',
+        message: 'Failed to check permissions',
+        details: error
+      };
+    }
+  });
+}
+
+/**
+ * Clean up IPC handlers and close connections
+ */
+export async function cleanupIPCHandlers(): Promise<void> {
+  try {
+    if (historyManager) {
+      await historyManager.close();
+    }
+  } catch (error) {
+    console.error('Cleanup error:', error);
+  }
+}
