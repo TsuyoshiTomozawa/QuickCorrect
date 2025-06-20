@@ -1,26 +1,12 @@
 /**
- * Controllers Module
- * 
- * QuickCorrectのController層をエクスポート
+ * Controllers Index - コントローラーのエクスポート
  */
 
-export { HotkeyController, hotkeyController, HotkeyEvent } from './HotkeyController';
-export { ClipboardController, clipboardController, ClipboardEvent, ClipboardOptions } from './ClipboardController';
-export { CorrectionController, correctionController, CorrectionRequest, CorrectionOptions, AIProviderInterface } from './CorrectionController';
+export { HotkeyController } from './HotkeyController';
+export { ClipboardController } from './ClipboardController';
+export { CorrectionController, AIProvider } from './CorrectionController';
 
-// 全コントローラーの初期化関数
-export function initializeControllers(): void {
-  // 各コントローラーは既にシングルトンとして初期化済み
-  // 必要に応じて追加の初期化処理をここに記述
-  
-  console.log('QuickCorrect Controllers initialized');
-}
-
-// 全コントローラーのクリーンアップ関数
-export function cleanupControllers(): void {
-  hotkeyController.destroy();
-  clipboardController.destroy();
-  correctionController.destroy();
-  
-  console.log('QuickCorrect Controllers cleaned up');
+// 統合初期化関数
+export function initializeAllControllers(): void {
+  console.log('QuickCorrect Controllers module loaded');
 }

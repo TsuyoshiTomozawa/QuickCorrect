@@ -1,15 +1,11 @@
 /**
- * ClipboardController - クリップボード操作管理
+ * ClipboardController - 統合版クリップボード管理
  * 
- * Issue #6: クリップボード連携機能を実装
- * - 添削結果の自動コピー機能
- * - リッチテキスト対応
- * - 履歴からの再コピー機能
- * - クリップボード監視機能
+ * EventBusと連携してクリップボード操作を管理
  */
 
 import { clipboard, nativeImage } from 'electron';
-import { EventEmitter } from 'events';
+import { eventBus, EventType } from '../services/EventBus';
 import { CorrectionResult, CorrectionHistory, ErrorCode } from '../types/interfaces';
 
 export interface ClipboardEvent {
@@ -25,22 +21,37 @@ export interface ClipboardOptions {
   notifyOnCopy: boolean;
 }
 
-export class ClipboardController extends EventEmitter {
+export class ClipboardController {
   private watchInterval: NodeJS.Timeout | null = null;
   private lastClipboardContent: string = '';
-  private options: ClipboardOptions;
+  private options: ClipboardOptions = {
+    autoFormat: true,
+    preserveFormatting: true,
+    notifyOnCopy: true
+  };
   
-  constructor(options: Partial<ClipboardOptions> = {}) {
-    super();
-    this.options = {
-      autoFormat: true,
-      preserveFormatting: true,
-      notifyOnCopy: true,
-      ...options
-    };
-    
-    // 初期のクリップボード内容を記録
+  constructor() {
+    this.setupEventListeners();
     this.lastClipboardContent = this.readText();
+  }
+
+  /**
+   * イベントリスナーの設定
+   */
+  private setupEventListeners(): void {
+    // 添削完了イベントを監視して自動コピー
+    eventBus.on(EventType.CORRECTION_COMPLETED, async (payload) => {
+      if (this.options.notifyOnCopy) {
+        await this.copyCorrectionResult(payload.result);
+      }
+    });
+
+    // 設定変更イベントを監視
+    eventBus.on(EventType.SETTINGS_CHANGED, (payload) => {
+      if (payload.clipboard) {
+        this.updateOptions(payload.clipboard);
+      }
+    });
   }
 
   /**
@@ -49,14 +60,28 @@ export class ClipboardController extends EventEmitter {
    */
   async getSelectedText(): Promise<string> {
     try {
-      // First, clear the clipboard to ensure we get fresh selection
-      const originalClipboard = clipboard.readText();
+      // 現在のクリップボードの内容を保存
+      const previousContent = clipboard.readText();
       
-      // TODO: Implement system-specific keyboard simulation to copy selected text
-      // For now, return current clipboard content
-      return clipboard.readText();
+      // プラットフォーム別のコピーコマンドを実行
+      await this.triggerCopy();
+      
+      // 少し待つ
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // 新しいクリップボードの内容を取得
+      const selectedText = clipboard.readText();
+      
+      // 元のクリップボードの内容を復元
+      if (previousContent !== selectedText) {
+        setTimeout(() => {
+          clipboard.writeText(previousContent);
+        }, 100);
+      }
+      
+      return selectedText;
     } catch (error) {
-      console.error('Error getting selected text:', error);
+      console.error('選択テキスト取得エラー:', error);
       return '';
     }
   }
@@ -82,28 +107,28 @@ export class ClipboardController extends EventEmitter {
     try {
       clipboard.writeText(text);
       
-      if (this.options.notifyOnCopy) {
-        this.emit('copied', {
-          type: 'copy',
-          content: text,
-          format: 'text',
-          timestamp: new Date()
-        } as ClipboardEvent);
-      }
+      eventBus.emit(EventType.CLIPBOARD_COPIED, {
+        text,
+        format: 'plain',
+        timestamp: new Date()
+      });
       
       return true;
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: 'クリップボードへのコピーに失敗しました',
-        details: error
+      eventBus.emit(EventType.CLIPBOARD_COPY_FAILED, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'クリップボードへのコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
     }
   }
 
   /**
-   * リッチテキスト（HTML）をクリップボードにコピー
+   * リッチテキストをクリップボードにコピー
    */
   async copyRichText(html: string, plainText?: string): Promise<boolean> {
     try {
@@ -118,21 +143,21 @@ export class ClipboardController extends EventEmitter {
         clipboard.writeText(text);
       }
       
-      if (this.options.notifyOnCopy) {
-        this.emit('copied', {
-          type: 'copy',
-          content: html,
-          format: 'html',
-          timestamp: new Date()
-        } as ClipboardEvent);
-      }
+      eventBus.emit(EventType.CLIPBOARD_COPIED, {
+        text: html,
+        format: 'rich',
+        timestamp: new Date()
+      });
       
       return true;
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: 'リッチテキストのコピーに失敗しました',
-        details: error
+      eventBus.emit(EventType.CLIPBOARD_COPY_FAILED, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'リッチテキストのコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
     }
@@ -143,21 +168,20 @@ export class ClipboardController extends EventEmitter {
    */
   async copyCorrectionResult(result: CorrectionResult): Promise<boolean> {
     try {
-      const formattedText = this.formatCorrectionResult(result);
-      
-      if (this.options.autoFormat && result.changes.length > 0) {
-        // 変更箇所をハイライトしたHTMLを生成
+      if (this.options.autoFormat && result.changes && result.changes.length > 0) {
         const htmlContent = this.generateHighlightedHtml(result);
         return await this.copyRichText(htmlContent, result.text);
       } else {
-        // プレーンテキストとしてコピー
         return await this.copyText(result.text);
       }
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: '添削結果のコピーに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '添削結果のコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
     }
@@ -170,12 +194,37 @@ export class ClipboardController extends EventEmitter {
     try {
       return await this.copyText(historyItem.correctedText);
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: '履歴からのコピーに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '履歴からのコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
+    }
+  }
+
+  /**
+   * プラットフォーム別のコピーコマンドを実行
+   */
+  private async triggerCopy(): Promise<void> {
+    const { execSync } = require('child_process');
+    
+    try {
+      if (process.platform === 'darwin') {
+        // macOS: Cmd+C
+        execSync(`osascript -e 'tell application "System Events" to keystroke "c" using command down'`);
+      } else if (process.platform === 'win32') {
+        // Windows: Ctrl+C
+        execSync('powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys(\'^c\')"');
+      } else {
+        // Linux: Ctrl+C
+        execSync('xdotool key ctrl+c');
+      }
+    } catch (error) {
+      console.error('コピーコマンド実行エラー:', error);
     }
   }
 
@@ -186,10 +235,13 @@ export class ClipboardController extends EventEmitter {
     try {
       return clipboard.readText();
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: 'クリップボードの読み取りに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'クリップボードの読み取りに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return '';
     }
@@ -206,10 +258,13 @@ export class ClipboardController extends EventEmitter {
         rtf: clipboard.readRTF()
       };
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: 'リッチテキストの読み取りに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'リッチテキストの読み取りに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return { text: '', html: '', rtf: '' };
     }
@@ -221,12 +276,15 @@ export class ClipboardController extends EventEmitter {
   clear(): void {
     try {
       clipboard.clear();
-      this.emit('cleared');
+      eventBus.emit(EventType.CLIPBOARD_CLEARED, { timestamp: new Date() });
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: 'クリップボードのクリアに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: 'クリップボードのクリアに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
     }
   }
@@ -244,16 +302,13 @@ export class ClipboardController extends EventEmitter {
       
       if (currentContent !== this.lastClipboardContent) {
         this.lastClipboardContent = currentContent;
-        this.emit('changed', {
-          type: 'changed',
+        
+        eventBus.emit(EventType.CLIPBOARD_CHANGED, {
           content: currentContent,
-          format: 'text',
           timestamp: new Date()
-        } as ClipboardEvent);
+        });
       }
     }, interval);
-
-    this.emit('watching-started');
   }
 
   /**
@@ -263,7 +318,6 @@ export class ClipboardController extends EventEmitter {
     if (this.watchInterval) {
       clearInterval(this.watchInterval);
       this.watchInterval = null;
-      this.emit('watching-stopped');
     }
   }
 
@@ -275,17 +329,21 @@ export class ClipboardController extends EventEmitter {
       const image = nativeImage.createFromPath(imagePath);
       clipboard.writeImage(image);
       
-      this.emit('image-copied', {
+      eventBus.emit(EventType.CLIPBOARD_COPIED, {
         path: imagePath,
+        format: 'image',
         timestamp: new Date()
       });
       
       return true;
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: '画像のコピーに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '画像のコピーに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
     }
@@ -299,60 +357,46 @@ export class ClipboardController extends EventEmitter {
       const image = clipboard.readImage();
       return image.isEmpty() ? null : image;
     } catch (error) {
-      this.emit('error', {
-        code: 'CLIPBOARD_ERROR' as ErrorCode,
-        message: '画像の読み取りに失敗しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'CLIPBOARD_ERROR' as ErrorCode,
+          message: '画像の読み取りに失敗しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return null;
     }
   }
 
   /**
-   * 添削結果をフォーマット
-   */
-  private formatCorrectionResult(result: CorrectionResult): string {
-    let formatted = result.text;
-    
-    if (result.explanation) {
-      formatted += `\n\n【説明】\n${result.explanation}`;
-    }
-    
-    if (result.changes.length > 0) {
-      formatted += '\n\n【変更箇所】\n';
-      result.changes.forEach((change, index) => {
-        formatted += `${index + 1}. "${change.original}" → "${change.corrected}" (${change.reason})\n`;
-      });
-    }
-    
-    return formatted;
-  }
-
-  /**
    * 変更箇所をハイライトしたHTMLを生成
    */
   private generateHighlightedHtml(result: CorrectionResult): string {
-    let html = `<div style="font-family: sans-serif;">`;
-    let lastIndex = 0;
+    let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">`;
     let workingText = result.text;
     
-    // 変更箇所を位置順にソート
-    const sortedChanges = [...result.changes].sort((a, b) => a.position.start - b.position.start);
-    
-    sortedChanges.forEach(change => {
-      const beforeText = workingText.substring(lastIndex, change.position.start);
-      const highlightedText = `<span style="background-color: #ffeb3b; font-weight: bold;">${change.corrected}</span>`;
+    if (result.changes && result.changes.length > 0) {
+      let lastIndex = 0;
+      const sortedChanges = [...result.changes].sort((a, b) => a.position.start - b.position.start);
       
-      html += this.escapeHtml(beforeText) + highlightedText;
-      lastIndex = change.position.end;
-    });
+      sortedChanges.forEach(change => {
+        const beforeText = workingText.substring(lastIndex, change.position.start);
+        const highlightedText = `<span style="background-color: #ffeb3b; font-weight: bold; padding: 2px 4px; border-radius: 3px;">${this.escapeHtml(change.corrected)}</span>`;
+        
+        html += this.escapeHtml(beforeText) + highlightedText;
+        lastIndex = change.position.end;
+      });
+      
+      html += this.escapeHtml(workingText.substring(lastIndex));
+    } else {
+      html += this.escapeHtml(workingText);
+    }
     
-    // 残りのテキスト
-    html += this.escapeHtml(workingText.substring(lastIndex));
-    
-    // 説明を追加
     if (result.explanation) {
-      html += `<p style="margin-top: 20px; color: #666;"><strong>説明:</strong> ${this.escapeHtml(result.explanation)}</p>`;
+      html += `<div style="margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 5px;">`;
+      html += `<strong style="color: #666;">説明:</strong> ${this.escapeHtml(result.explanation)}`;
+      html += `</div>`;
     }
     
     html += `</div>`;
@@ -387,7 +431,6 @@ export class ClipboardController extends EventEmitter {
    */
   updateOptions(options: Partial<ClipboardOptions>): void {
     this.options = { ...this.options, ...options };
-    this.emit('options-updated', this.options);
   }
 
   /**
@@ -402,9 +445,5 @@ export class ClipboardController extends EventEmitter {
    */
   destroy(): void {
     this.stopWatching();
-    this.removeAllListeners();
   }
 }
-
-// シングルトンインスタンスをエクスポート
-export const clipboardController = new ClipboardController();

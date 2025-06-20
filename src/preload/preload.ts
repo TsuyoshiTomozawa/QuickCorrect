@@ -36,7 +36,20 @@ const IPC_CHANNELS = {
   
   // System
   GET_SYSTEM_INFO: 'get-system-info',
-  CHECK_PERMISSIONS: 'check-permissions'
+  CHECK_PERMISSIONS: 'check-permissions',
+  
+  // Statistics and debug
+  GET_STATISTICS: 'get-statistics',
+  DEBUG_INFO: 'debug-info',
+  
+  // Navigation
+  NAVIGATE: 'navigate',
+  THEME_CHANGED: 'theme-changed',
+  
+  // Workflow events
+  WORKFLOW_TEXT_SELECTED: 'workflow:text-selected',
+  WORKFLOW_CORRECTION_COMPLETED: 'workflow:correction-completed',
+  WORKFLOW_ERROR: 'workflow:error'
 } as const;
 
 // Validate allowed channels for security
@@ -66,7 +79,8 @@ const electronAPI: ElectronAPI = {
   
   saveSettings: async (settings: Partial<AppSettings>): Promise<boolean> => {
     try {
-      return await ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
+      const result = await ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
+      return result?.success || result === true;
     } catch (error) {
       console.error('Error saving settings:', error);
       throw error;
@@ -178,14 +192,77 @@ const electronAPI: ElectronAPI = {
       console.error('Error checking permissions:', error);
       throw error;
     }
+  },
+  
+  // Statistics (PR #19 additions)
+  getStatistics: async (): Promise<any> => {
+    try {
+      return await ipcRenderer.invoke(IPC_CHANNELS.GET_STATISTICS);
+    } catch (error) {
+      console.error('Error getting statistics:', error);
+      throw error;
+    }
+  },
+  
+  // Debug
+  getDebugInfo: async (): Promise<any> => {
+    try {
+      return await ipcRenderer.invoke(IPC_CHANNELS.DEBUG_INFO);
+    } catch (error) {
+      console.error('Error getting debug info:', error);
+      throw error;
+    }
+  },
+  
+  // Event listeners (PR #19 additions)
+  on: (channel: string, callback: Function): void => {
+    const validChannels = [
+      IPC_CHANNELS.WORKFLOW_TEXT_SELECTED,
+      IPC_CHANNELS.WORKFLOW_CORRECTION_COMPLETED,
+      IPC_CHANNELS.WORKFLOW_ERROR,
+      IPC_CHANNELS.NAVIGATE,
+      IPC_CHANNELS.THEME_CHANGED,
+      IPC_CHANNELS.TEXT_SELECTED
+    ];
+    
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, (event, ...args) => callback(...args));
+    } else {
+      console.warn(`Attempted to listen to unauthorized channel: ${channel}`);
+    }
+  },
+  
+  // One-time event listener
+  once: (channel: string, callback: Function): void => {
+    const validChannels = [
+      IPC_CHANNELS.WORKFLOW_TEXT_SELECTED,
+      IPC_CHANNELS.WORKFLOW_CORRECTION_COMPLETED,
+      IPC_CHANNELS.WORKFLOW_ERROR
+    ];
+    
+    if (validChannels.includes(channel)) {
+      ipcRenderer.once(channel, (event, ...args) => callback(...args));
+    } else {
+      console.warn(`Attempted to listen once to unauthorized channel: ${channel}`);
+    }
   }
 };
 
 // Expose the API to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
+// TypeScript用の型定義
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+
 // Log successful preload
-console.log('Preload script loaded successfully');
+if (process.env.NODE_ENV === 'development') {
+  console.log('Preload script loaded successfully');
+  console.log('Available API methods:', Object.keys(electronAPI));
+}
 
 // Export for TypeScript support
 export { IPC_CHANNELS };

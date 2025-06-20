@@ -1,33 +1,36 @@
 /**
- * HotkeyController - グローバルホットキー管理
+ * HotkeyController - 統合版ホットキー管理
  * 
- * Issue #3: グローバルホットキーの登録・解除機能を実装
- * - Ctrl+T (Windows/Linux) / Cmd+T (macOS) のグローバル監視
- * - 選択テキストの取得とイベント発火
- * - 権限チェック機能（特にmacOSのアクセシビリティ）
+ * EventBusと連携してグローバルホットキーを管理
  */
 
-import { globalShortcut, clipboard, BrowserWindow, app, systemPreferences } from 'electron';
-import { EventEmitter } from 'events';
-import { CorrectionMode, AppSettings, ErrorCode } from '../types/interfaces';
+import { globalShortcut, clipboard, BrowserWindow, systemPreferences } from 'electron';
+import { eventBus, EventType } from '../services/EventBus';
+import { ErrorCode } from '../types/interfaces';
 
-export interface HotkeyEvent {
-  selectedText: string;
-  timestamp: Date;
-  source: 'clipboard' | 'selection';
-}
-
-export class HotkeyController extends EventEmitter {
+export class HotkeyController {
   private currentHotkey: string;
   private isRegistered: boolean = false;
   private readonly defaultHotkey: string;
   private registeredHotkeys: Map<string, () => void> = new Map();
+  private previousClipboard: string = '';
   
   constructor() {
-    super();
-    // プラットフォームに応じたデフォルトホットキー
     this.defaultHotkey = process.platform === 'darwin' ? 'Cmd+T' : 'Ctrl+T';
     this.currentHotkey = this.defaultHotkey;
+    this.setupEventListeners();
+  }
+
+  /**
+   * イベントリスナーの設定
+   */
+  private setupEventListeners(): void {
+    // 設定変更イベントを監視
+    eventBus.on(EventType.SETTINGS_CHANGED, (payload) => {
+      if (payload.hotkey && payload.hotkey !== this.currentHotkey) {
+        this.register(payload.hotkey);
+      }
+    });
   }
 
   /**
@@ -88,19 +91,22 @@ export class HotkeyController extends EventEmitter {
    */
   async register(hotkey?: string): Promise<boolean> {
     try {
-      // 既存のホットキーが登録されていれば解除
+      // 既存のホットキーを解除
       if (this.isRegistered) {
         await this.unregister();
       }
 
-      // 権限チェック（macOS）
+      // macOSの権限チェック
       if (process.platform === 'darwin') {
         const hasPermission = await this.checkAccessibilityPermission();
         if (!hasPermission) {
-          this.emit('permission-error', {
-            code: 'PERMISSION_ERROR' as ErrorCode,
-            message: 'アクセシビリティ権限が必要です',
-            platform: 'darwin'
+          eventBus.emit(EventType.SYSTEM_ERROR, {
+            error: {
+              code: 'PERMISSION_ERROR' as ErrorCode,
+              message: 'アクセシビリティ権限が必要です',
+              details: { platform: 'darwin' },
+              timestamp: new Date()
+            }
           });
           return false;
         }
@@ -116,56 +122,35 @@ export class HotkeyController extends EventEmitter {
       if (registered) {
         this.currentHotkey = keyToRegister;
         this.isRegistered = true;
-        this.emit('registered', { hotkey: keyToRegister });
+        
+        eventBus.emit(EventType.HOTKEY_REGISTERED, {
+          hotkey: keyToRegister,
+          timestamp: new Date()
+        });
+        
         return true;
       } else {
-        this.emit('registration-failed', {
-          code: 'HOTKEY_ERROR' as ErrorCode,
-          message: `ホットキー ${keyToRegister} の登録に失敗しました`,
-          hotkey: keyToRegister
+        eventBus.emit(EventType.HOTKEY_ERROR, {
+          error: {
+            code: 'HOTKEY_ERROR' as ErrorCode,
+            message: `ホットキー ${keyToRegister} の登録に失敗しました`,
+            details: { hotkey: keyToRegister },
+            timestamp: new Date()
+          }
         });
         return false;
       }
     } catch (error) {
-      this.emit('error', {
-        code: 'HOTKEY_ERROR' as ErrorCode,
-        message: 'ホットキー登録中にエラーが発生しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'HOTKEY_ERROR' as ErrorCode,
+          message: 'ホットキー登録中にエラーが発生しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
       return false;
     }
-  }
-
-  /**
-   * ホットキーを解除
-   */
-  async unregister(): Promise<boolean> {
-    try {
-      if (this.isRegistered && this.currentHotkey) {
-        globalShortcut.unregister(this.currentHotkey);
-        this.isRegistered = false;
-        this.emit('unregistered', { hotkey: this.currentHotkey });
-        return true;
-      }
-      return false;
-    } catch (error) {
-      this.emit('error', {
-        code: 'HOTKEY_ERROR' as ErrorCode,
-        message: 'ホットキー解除中にエラーが発生しました',
-        details: error
-      });
-      return false;
-    }
-  }
-
-  /**
-   * 全てのホットキーを解除
-   */
-  unregisterAll(): void {
-    globalShortcut.unregisterAll();
-    this.isRegistered = false;
-    this.registeredHotkeys.clear();
-    this.emit('all-unregistered');
   }
 
   /**
@@ -173,84 +158,161 @@ export class HotkeyController extends EventEmitter {
    */
   private async handleHotkeyPress(): Promise<void> {
     try {
+      // ホットキー押下イベントを発行
+      eventBus.emit(EventType.HOTKEY_PRESSED, {
+        hotkey: this.currentHotkey,
+        timestamp: new Date()
+      });
+
       // 選択されたテキストを取得
       const selectedText = await this.getSelectedText();
       
       if (selectedText && selectedText.trim()) {
-        const event: HotkeyEvent = {
-          selectedText: selectedText.trim(),
-          timestamp: new Date(),
-          source: 'clipboard'
-        };
-        
-        this.emit('hotkey-pressed', event);
+        // テキスト選択成功イベントを発行
+        eventBus.emit(EventType.TEXT_SELECTED, {
+          text: selectedText.trim(),
+          source: 'hotkey',
+          timestamp: new Date()
+        });
       } else {
-        this.emit('no-text-selected');
+        // テキスト選択失敗イベントを発行
+        eventBus.emit(EventType.TEXT_SELECTION_FAILED, {
+          reason: 'no-text-selected',
+          timestamp: new Date()
+        });
       }
     } catch (error) {
-      this.emit('error', {
-        code: 'HOTKEY_ERROR' as ErrorCode,
-        message: 'テキスト取得中にエラーが発生しました',
-        details: error
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'HOTKEY_ERROR' as ErrorCode,
+          message: 'テキスト取得中にエラーが発生しました',
+          details: error,
+          timestamp: new Date()
+        }
       });
     }
   }
 
   /**
-   * 選択されたテキストを取得
-   * クリップボード経由で選択テキストを取得（クロスプラットフォーム対応）
+   * 選択されたテキストを取得（改良版）
    */
   private async getSelectedText(): Promise<string> {
     try {
       // 現在のクリップボードの内容を保存
-      const previousClipboard = clipboard.readText();
+      this.previousClipboard = clipboard.readText();
       
-      // Ctrl+C / Cmd+C をシミュレート
-      const currentWindow = BrowserWindow.getFocusedWindow();
-      if (currentWindow) {
-        // 選択されたテキストをコピー
-        if (process.platform === 'darwin') {
-          // macOS
-          currentWindow.webContents.selectAll();
-          currentWindow.webContents.copy();
-        } else {
-          // Windows/Linux
-          currentWindow.webContents.copy();
-        }
+      // アクティブなウィンドウを取得
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      
+      if (focusedWindow && focusedWindow.webContents) {
+        // Electronウィンドウ内の場合
+        return await this.getTextFromElectronWindow(focusedWindow);
       } else {
-        // アクティブウィンドウがない場合、システムレベルでコピーを試行
-        // プラットフォーム固有の実装が必要
-        return this.getSelectedTextFallback();
+        // 外部アプリケーションの場合
+        return await this.getTextFromExternalApp();
       }
-      
-      // 少し待つ（クリップボードへの反映待ち）
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // クリップボードから選択されたテキストを取得
-      const selectedText = clipboard.readText();
-      
-      // 元のクリップボードの内容を復元
-      if (previousClipboard) {
-        clipboard.writeText(previousClipboard);
-      }
-      
-      return selectedText;
     } catch (error) {
-      throw new Error(`選択テキスト取得エラー: ${error}`);
+      console.error('選択テキスト取得エラー:', error);
+      return '';
+    } finally {
+      // クリップボードを復元
+      if (this.previousClipboard) {
+        setTimeout(() => {
+          clipboard.writeText(this.previousClipboard);
+        }, 100);
+      }
     }
   }
 
   /**
-   * フォールバック: 別の方法で選択テキストを取得
+   * Electronウィンドウからテキストを取得
    */
-  private async getSelectedTextFallback(): Promise<string> {
-    // プラットフォーム固有の実装
-    // 例: Windows - PowerShell/AutoHotkey
-    // 例: macOS - AppleScript
-    // 例: Linux - xclip/xsel
-    
-    // 現時点では単純にクリップボードの内容を返す
-    return clipboard.readText();
+  private async getTextFromElectronWindow(window: BrowserWindow): Promise<string> {
+    try {
+      const selectedText = await window.webContents.executeJavaScript(`
+        window.getSelection().toString()
+      `);
+      return selectedText || '';
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * 外部アプリケーションからテキストを取得
+   */
+  private async getTextFromExternalApp(): Promise<string> {
+    // プラットフォーム別の実装
+    if (process.platform === 'darwin') {
+      // macOS: AppleScriptを使用
+      return await this.getTextMacOS();
+    } else if (process.platform === 'win32') {
+      // Windows: PowerShellまたはAutoHotkeyを使用
+      return await this.getTextWindows();
+    } else {
+      // Linux: xclipを使用
+      return await this.getTextLinux();
+    }
+  }
+
+  /**
+   * macOSでテキストを取得
+   */
+  private async getTextMacOS(): Promise<string> {
+    const { execSync } = require('child_process');
+    try {
+      // Cmd+Cをシミュレート
+      execSync(`osascript -e 'tell application "System Events" to keystroke "c" using command down'`);
+      
+      // クリップボードの更新を待つ
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      return clipboard.readText();
+    } catch {
+      return clipboard.readText();
+    }
+  }
+
+  /**
+   * Windowsでテキストを取得
+   */
+  private async getTextWindows(): Promise<string> {
+    const { execSync } = require('child_process');
+    try {
+      // Ctrl+Cをシミュレート
+      execSync('powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys(\'^c\')"');
+      
+      // クリップボードの更新を待つ
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      return clipboard.readText();
+    } catch {
+      return clipboard.readText();
+    }
+  }
+
+  /**
+   * Linuxでテキストを取得
+   */
+  private async getTextLinux(): Promise<string> {
+    const { execSync } = require('child_process');
+    try {
+      // xdotoolを使用してCtrl+Cをシミュレート
+      execSync('xdotool key ctrl+c');
+      
+      // クリップボードの更新を待つ
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      return clipboard.readText();
+    } catch {
+      // xselを試す
+      try {
+        const selection = execSync('xsel -o').toString();
+        return selection;
+      } catch {
+        return clipboard.readText();
+      }
+    }
   }
 
   /**
@@ -263,19 +325,50 @@ export class HotkeyController extends EventEmitter {
 
     try {
       const isTrusted = systemPreferences.isTrustedAccessibilityClient(true);
-      if (!isTrusted) {
-        // 権限要求ダイアログを表示
-        this.emit('permission-required', {
-          type: 'accessibility',
-          platform: 'darwin',
-          message: 'QuickCorrectがテキスト選択を監視するにはアクセシビリティ権限が必要です'
-        });
-      }
       return isTrusted;
     } catch (error) {
       console.error('アクセシビリティ権限チェックエラー:', error);
       return false;
     }
+  }
+
+  /**
+   * ホットキーを解除
+   */
+  async unregister(): Promise<boolean> {
+    try {
+      if (this.isRegistered && this.currentHotkey) {
+        globalShortcut.unregister(this.currentHotkey);
+        this.isRegistered = false;
+        
+        eventBus.emit(EventType.HOTKEY_UNREGISTERED, {
+          hotkey: this.currentHotkey,
+          timestamp: new Date()
+        });
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      eventBus.emit(EventType.SYSTEM_ERROR, {
+        error: {
+          code: 'HOTKEY_ERROR' as ErrorCode,
+          message: 'ホットキー解除中にエラーが発生しました',
+          details: error,
+          timestamp: new Date()
+        }
+      });
+      return false;
+    }
+  }
+
+  /**
+   * 全てのホットキーを解除
+   */
+  unregisterAll(): void {
+    globalShortcut.unregisterAll();
+    this.isRegistered = false;
+    this.registeredHotkeys.clear();
   }
 
   /**
@@ -315,14 +408,5 @@ export class HotkeyController extends EventEmitter {
    */
   destroy(): void {
     this.unregisterAll();
-    this.removeAllListeners();
   }
 }
-
-// シングルトンインスタンスをエクスポート
-export const hotkeyController = new HotkeyController();
-
-// アプリケーション終了時のクリーンアップ
-app.on('will-quit', () => {
-  hotkeyController.destroy();
-});
