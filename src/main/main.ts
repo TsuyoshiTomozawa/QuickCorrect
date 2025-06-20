@@ -1,1 +1,387 @@
-/**\n * QuickCorrect - Main Process Entry Point\n * \n * This file serves as the main entry point for the Electron application.\n * It handles:\n * - Application lifecycle management\n * - Window creation and management\n * - Global hotkey registration\n * - IPC communication setup\n */\n\nimport { app, BrowserWindow, globalShortcut, ipcMain } from 'electron';\nimport * as path from 'path';\nimport { HotkeyController } from '../controllers/HotkeyController';\nimport { CorrectionController } from '../controllers/CorrectionController';\nimport { ClipboardController } from '../controllers/ClipboardController';\n\n// Keep a global reference of the window object\nlet mainWindow: BrowserWindow | null = null;\nlet hotkeyController: HotkeyController;\nlet correctionController: CorrectionController;\nlet clipboardController: ClipboardController;\n\n/**\n * Create the main application window\n */\nfunction createWindow(): void {\n  // Create the browser window\n  mainWindow = new BrowserWindow({\n    width: 800,\n    height: 500,\n    minWidth: 600,\n    minHeight: 400,\n    show: false, // Don't show until ready\n    alwaysOnTop: true,\n    frame: true,\n    titleBarStyle: 'default',\n    webPreferences: {\n      nodeIntegration: false,\n      contextIsolation: true,\n      preload: path.join(__dirname, '../preload/preload.js'),\n      webSecurity: true\n    },\n    icon: path.join(__dirname, '../../assets/icon.png') // Add app icon\n  });\n\n  // Load the app\n  if (process.env.NODE_ENV === 'development') {\n    mainWindow.loadURL('http://localhost:3000');\n    mainWindow.webContents.openDevTools();\n  } else {\n    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));\n  }\n\n  // Show window when ready to prevent visual flash\n  mainWindow.once('ready-to-show', () => {\n    if (mainWindow) {\n      mainWindow.show();\n      \n      // Focus the window if it was triggered by hotkey\n      if (process.platform === 'darwin') {\n        mainWindow.focus();\n      }\n    }\n  });\n\n  // Handle window closed\n  mainWindow.on('closed', () => {\n    mainWindow = null;\n  });\n\n  // Handle window minimize (hide instead of minimize for better UX)\n  mainWindow.on('minimize', (event) => {\n    event.preventDefault();\n    mainWindow?.hide();\n  });\n}\n\n/**\n * Initialize application controllers\n */\nfunction initializeControllers(): void {\n  // Initialize controllers\n  hotkeyController = new HotkeyController();\n  correctionController = new CorrectionController();\n  clipboardController = new ClipboardController();\n\n  // Register global hotkey\n  hotkeyController.registerHotkey('CommandOrControl+T', () => {\n    showWindowWithSelectedText();\n  });\n}\n\n/**\n * Show window and process selected text\n */\nasync function showWindowWithSelectedText(): Promise<void> {\n  try {\n    // Get selected text from clipboard\n    const selectedText = await clipboardController.getSelectedText();\n    \n    if (selectedText) {\n      // Show window if hidden\n      if (mainWindow) {\n        if (!mainWindow.isVisible()) {\n          mainWindow.show();\n        }\n        mainWindow.focus();\n        \n        // Send selected text to renderer\n        mainWindow.webContents.send('text-selected', selectedText);\n      }\n    }\n  } catch (error) {\n    console.error('Error processing selected text:', error);\n  }\n}\n\n/**\n * Setup IPC handlers\n */\nfunction setupIPC(): void {\n  // Handle text correction request\n  ipcMain.handle('correct-text', async (event, text: string, mode: string) => {\n    try {\n      const correctedText = await correctionController.correctText(text, mode);\n      \n      // Auto-copy to clipboard\n      await clipboardController.copyToClipboard(correctedText.text);\n      \n      return correctedText;\n    } catch (error) {\n      console.error('Text correction error:', error);\n      throw error;\n    }\n  });\n\n  // Handle settings requests\n  ipcMain.handle('get-settings', async () => {\n    // TODO: Implement settings retrieval\n    return {};\n  });\n\n  ipcMain.handle('save-settings', async (event, settings) => {\n    // TODO: Implement settings saving\n    return true;\n  });\n\n  // Handle window control\n  ipcMain.handle('hide-window', () => {\n    mainWindow?.hide();\n  });\n\n  ipcMain.handle('minimize-window', () => {\n    mainWindow?.minimize();\n  });\n\n  ipcMain.handle('close-window', () => {\n    mainWindow?.close();\n  });\n}\n\n/**\n * App event handlers\n */\n\n// This method will be called when Electron has finished initialization\napp.whenReady().then(() => {\n  createWindow();\n  initializeControllers();\n  setupIPC();\n\n  // On macOS, re-create window when dock icon is clicked\n  app.on('activate', () => {\n    if (BrowserWindow.getAllWindows().length === 0) {\n      createWindow();\n    }\n  });\n});\n\n// Quit when all windows are closed\napp.on('window-all-closed', () => {\n  // On macOS, keep app running even when all windows are closed\n  if (process.platform !== 'darwin') {\n    app.quit();\n  }\n});\n\n// Clean up before quitting\napp.on('before-quit', () => {\n  // Unregister all global shortcuts\n  globalShortcut.unregisterAll();\n});\n\n// Handle app activation (macOS)\napp.on('activate', () => {\n  if (mainWindow === null) {\n    createWindow();\n  } else {\n    mainWindow.show();\n  }\n});\n\n// Security: Prevent new window creation\napp.on('web-contents-created', (event, contents) => {\n  contents.on('new-window', (event, navigationUrl) => {\n    event.preventDefault();\n    console.log('Prevented new window:', navigationUrl);\n  });\n});\n\nexport { mainWindow };
+/**
+ * QuickCorrect - Main Process Entry Point (統合版)
+ * 
+ * Controller統合とイベント処理を実装した改良版
+ */
+
+import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } from 'electron';
+import * as path from 'path';
+import { eventBus, EventType } from '../services/EventBus';
+import { HotkeyController } from '../controllers/HotkeyController';
+import { CorrectionController, AIProvider } from '../controllers/CorrectionController';
+import { ClipboardController } from '../controllers/ClipboardController';
+import { WorkflowOrchestrator } from '../services/WorkflowOrchestrator';
+import { CorrectionMode, CorrectionResult, AppSettings } from '../types/interfaces';
+
+// グローバル変数
+let mainWindow: BrowserWindow | null = null;
+let hotkeyController: HotkeyController;
+let correctionController: CorrectionController;
+let clipboardController: ClipboardController;
+let workflowOrchestrator: WorkflowOrchestrator;
+let tray: Tray | null = null;
+
+// 開発モードかチェック
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+/**
+ * メインウィンドウを作成
+ */
+function createWindow(): void {
+  mainWindow = new BrowserWindow({
+    width: 900,
+    height: 600,
+    minWidth: 700,
+    minHeight: 450,
+    show: false,
+    alwaysOnTop: true,
+    frame: true,
+    titleBarStyle: 'hiddenInset',
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, '../preload/preload.js'),
+      webSecurity: !isDevelopment
+    },
+    icon: path.join(__dirname, '../../assets/icon.png')
+  });
+
+  // 開発環境設定
+  if (isDevelopment) {
+    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  }
+
+  // ウィンドウ準備完了時
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      setupWindowEventHandlers();
+    }
+  });
+
+  // ウィンドウクローズ時
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+/**
+ * ウィンドウイベントハンドラーを設定
+ */
+function setupWindowEventHandlers(): void {
+  if (!mainWindow) return;
+
+  // ウィンドウフォーカス
+  mainWindow.on('focus', () => {
+    eventBus.emit(EventType.WINDOW_FOCUS, { timestamp: new Date() });
+  });
+
+  // ウィンドウブラー
+  mainWindow.on('blur', () => {
+    eventBus.emit(EventType.WINDOW_BLUR, { timestamp: new Date() });
+  });
+
+  // 最小化時は非表示にする
+  mainWindow.on('minimize', (event) => {
+    event.preventDefault();
+    mainWindow?.hide();
+    eventBus.emit(EventType.WINDOW_HIDE, { 
+      reason: 'minimize',
+      timestamp: new Date() 
+    });
+  });
+}
+
+/**
+ * システムトレイを作成
+ */
+function createTray(): void {
+  const icon = nativeImage.createFromPath(path.join(__dirname, '../../assets/tray-icon.png'));
+  tray = new Tray(icon);
+  
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'QuickCorrectを表示',
+      click: () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      }
+    },
+    {
+      label: '設定',
+      click: () => {
+        mainWindow?.show();
+        mainWindow?.webContents.send('navigate', '/settings');
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '終了',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+  
+  tray.setToolTip('QuickCorrect - AI添削アシスタント');
+  tray.setContextMenu(contextMenu);
+  
+  // トレイアイコンクリックでウィンドウ表示
+  tray.on('click', () => {
+    if (mainWindow?.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow?.show();
+      mainWindow?.focus();
+    }
+  });
+}
+
+/**
+ * コントローラーを初期化
+ */
+async function initializeControllers(): Promise<void> {
+  console.log('Initializing controllers...');
+  
+  // コントローラーのインスタンス化
+  hotkeyController = new HotkeyController();
+  clipboardController = new ClipboardController();
+  correctionController = new CorrectionController();
+  
+  // AIプロバイダーの登録（モック実装）
+  correctionController.registerProvider(createMockAIProvider());
+  
+  // ワークフローオーケストレーターの初期化
+  workflowOrchestrator = new WorkflowOrchestrator(
+    hotkeyController,
+    clipboardController,
+    correctionController
+  );
+  
+  if (mainWindow) {
+    workflowOrchestrator.setMainWindow(mainWindow);
+  }
+  
+  // ホットキーの登録
+  await hotkeyController.register();
+  
+  // システム準備完了イベント
+  eventBus.emit(EventType.SYSTEM_READY, { timestamp: new Date() });
+  
+  console.log('Controllers initialized successfully');
+}
+
+/**
+ * モックAIプロバイダーを作成（開発用）
+ */
+function createMockAIProvider(): AIProvider {
+  return {
+    name: 'mock',
+    async correctText(text: string, mode: CorrectionMode): Promise<CorrectionResult> {
+      // 簡単な添削シミュレーション
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const correctedText = text
+        .replace(/です。/g, 'でございます。')
+        .replace(/ます。/g, 'ます。')
+        .replace(/だ。/g, 'です。');
+      
+      return {
+        text: correctedText,
+        explanation: `${mode}モードで添削しました`,
+        changes: [{
+          original: 'です',
+          corrected: 'でございます',
+          reason: '敬語レベルの向上',
+          position: { start: 0, end: 2 }
+        }],
+        confidence: 0.95,
+        processingTime: 1000,
+        model: 'mock-model-v1'
+      };
+    },
+    isAvailable(): boolean {
+      return true;
+    }
+  };
+}
+
+/**
+ * IPCハンドラーを設定
+ */
+function setupIPC(): void {
+  // 手動テキスト添削
+  ipcMain.handle('correct-text', async (event, text: string, mode?: CorrectionMode) => {
+    try {
+      await workflowOrchestrator.processManualText(text, mode);
+      return { success: true };
+    } catch (error) {
+      console.error('Correction error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 設定取得
+  ipcMain.handle('get-settings', async () => {
+    // TODO: 実際の設定管理を実装
+    return {
+      hotkey: hotkeyController.getCurrentHotkey(),
+      defaultMode: correctionController.getMode(),
+      autoCorrect: true,
+      autoCopy: true
+    } as Partial<AppSettings>;
+  });
+
+  // 設定保存
+  ipcMain.handle('save-settings', async (event, settings: Partial<AppSettings>) => {
+    try {
+      eventBus.emit(EventType.SETTINGS_CHANGED, settings);
+      eventBus.emit(EventType.SETTINGS_SAVED, { 
+        settings,
+        timestamp: new Date() 
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ウィンドウ制御
+  ipcMain.handle('hide-window', () => {
+    mainWindow?.hide();
+    eventBus.emit(EventType.WINDOW_HIDE, { 
+      reason: 'user-action',
+      timestamp: new Date() 
+    });
+  });
+
+  ipcMain.handle('minimize-window', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle('close-window', () => {
+    mainWindow?.close();
+  });
+
+  // イベント統計取得
+  ipcMain.handle('get-statistics', () => {
+    return {
+      workflow: workflowOrchestrator.getWorkflowStatistics(),
+      events: Object.fromEntries(eventBus.getEventStatistics()),
+      health: Object.fromEntries(correctionController.checkProvidersHealth())
+    };
+  });
+
+  // デバッグ情報取得
+  ipcMain.handle('debug-info', () => {
+    eventBus.debug();
+    return {
+      workflowState: workflowOrchestrator.getWorkflowState(),
+      hotkeyRegistered: hotkeyController.isHotkeyRegistered(),
+      activeRequests: correctionController.getActiveRequestCount()
+    };
+  });
+}
+
+/**
+ * グローバルエラーハンドラーを設定
+ */
+function setupErrorHandlers(): void {
+  // 未処理のPromiseエラー
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    eventBus.emit(EventType.SYSTEM_ERROR, {
+      error: {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unhandled promise rejection',
+        details: reason,
+        timestamp: new Date()
+      }
+    });
+  });
+
+  // 未処理の例外
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    eventBus.emit(EventType.SYSTEM_ERROR, {
+      error: {
+        code: 'UNKNOWN_ERROR',
+        message: 'Uncaught exception',
+        details: error,
+        timestamp: new Date()
+      }
+    });
+  });
+}
+
+/**
+ * アプリケーション起動
+ */
+app.whenReady().then(async () => {
+  createWindow();
+  createTray();
+  await initializeControllers();
+  setupIPC();
+  setupErrorHandlers();
+
+  // macOS: Dockアイコンクリック時の処理
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    } else {
+      mainWindow?.show();
+      mainWindow?.focus();
+    }
+  });
+});
+
+/**
+ * 全ウィンドウが閉じられた時
+ */
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+/**
+ * アプリ終了前のクリーンアップ
+ */
+app.on('before-quit', () => {
+  console.log('Cleaning up before quit...');
+  
+  // シャットダウンイベント
+  eventBus.emit(EventType.SYSTEM_SHUTDOWN, { timestamp: new Date() });
+  
+  // コントローラーのクリーンアップ
+  hotkeyController?.destroy();
+  clipboardController?.destroy();
+  correctionController?.destroy();
+  workflowOrchestrator?.destroy();
+  
+  // トレイの削除
+  tray?.destroy();
+});
+
+/**
+ * セキュリティ: 新規ウィンドウ作成を防止
+ */
+app.on('web-contents-created', (event, contents) => {
+  contents.on('new-window', (event) => {
+    event.preventDefault();
+  });
+  
+  // ナビゲーション制限
+  contents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('http://localhost:3000') && !url.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
+});
+
+// エクスポート
+export { mainWindow, eventBus };
