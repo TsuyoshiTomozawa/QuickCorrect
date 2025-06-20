@@ -331,6 +331,24 @@ export class HotkeyController {
   }
 
   /**
+   * ホットキーが利用可能かチェック
+   */
+  isAcceleratorValid(accelerator: string): boolean {
+    try {
+      return globalShortcut.isRegistered(accelerator) === false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * ホットキーのコンフリクトをチェック
+   */
+  checkHotkeyConflict(hotkey: string): boolean {
+    return globalShortcut.isRegistered(hotkey);
+  }
+
+  /**
    * クリーンアップ処理
    */
   destroy(): void {
