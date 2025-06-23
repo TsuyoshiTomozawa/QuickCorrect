@@ -128,16 +128,19 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     setDisplayValue(formatHotkey(value));
   }, [value]);
 
+  // Get platform
+  const platform = window.electronAPI?.platform || 'darwin';
+  
   // Format hotkey for display
   const formatHotkey = (hotkey: string): string => {
     if (!hotkey) return '';
     
     // Convert platform-specific modifiers
     return hotkey
-      .replace('CommandOrControl', process.platform === 'darwin' ? '⌘' : 'Ctrl')
+      .replace('CommandOrControl', platform === 'darwin' ? '⌘' : 'Ctrl')
       .replace('Command', '⌘')
       .replace('Control', 'Ctrl')
-      .replace('Alt', process.platform === 'darwin' ? '⌥' : 'Alt')
+      .replace('Alt', platform === 'darwin' ? '⌥' : 'Alt')
       .replace('Shift', '⇧')
       .replace('Plus', '+')
       .replace('Space', 'Space')
@@ -270,7 +273,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
         />
         {error && <ErrorMessage>{error}</ErrorMessage>}
         {isRecording && !error && (
-          <HintMessage>修飾キー（{process.platform === 'darwin' ? 'Cmd' : 'Ctrl'}/Alt/Shift）と通常のキーを組み合わせてください</HintMessage>
+          <HintMessage>修飾キー（{platform === 'darwin' ? 'Cmd' : 'Ctrl'}/Alt/Shift）と通常のキーを組み合わせてください</HintMessage>
         )}
       </InputWrapper>
       <Button onClick={handleReset}>デフォルト</Button>

@@ -185,6 +185,9 @@ const electronAPI: ElectronAPI = {
     }
   },
   
+  // Platform info for renderer process
+  platform: process.platform,
+  
   checkPermissions: async (): Promise<PermissionStatus> => {
     try {
       return await ipcRenderer.invoke(IPC_CHANNELS.CHECK_PERMISSIONS);

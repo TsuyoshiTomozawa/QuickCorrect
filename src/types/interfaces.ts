@@ -179,6 +179,7 @@ export interface ElectronAPI {
   // System
   getSystemInfo: () => Promise<SystemInfo>;
   checkPermissions: () => Promise<PermissionStatus>;
+  platform: NodeJS.Platform;
   
   // Statistics
   getStatistics: () => Promise<any>;

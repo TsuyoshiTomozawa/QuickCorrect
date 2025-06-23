@@ -102,7 +102,7 @@ const App: React.FC = () => {
   const handleCorrectText = async (text?: string) => {
     const textToCorrect = text || inputText;
     
-    if (!textToCorrect.trim()) {
+    if (!textToCorrect || typeof textToCorrect !== 'string' || !textToCorrect.trim()) {
       return;
     }
 
