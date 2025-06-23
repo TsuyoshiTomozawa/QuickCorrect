@@ -25,11 +25,11 @@ export class OpenAIProvider extends AIProvider {
   constructor(config: AIProviderConfig) {
     const metadata: AIProviderMetadata = {
       name: 'openai',
-      displayName: 'OpenAI GPT-4',
+      displayName: 'OpenAI GPT-3.5 Turbo',
       version: '4.0',
       maxInputLength: 8000,
       supportedModes: ['business', 'academic', 'casual', 'presentation'],
-      costPerToken: 0.00003 // GPT-4 pricing per token
+      costPerToken: 0.0000005 // GPT-3.5-turbo pricing per token
     };
 
     super(config, metadata);
@@ -69,7 +69,7 @@ export class OpenAIProvider extends AIProvider {
 
   private async callOpenAIAPI(prompt: string): Promise<any> {
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo',
       messages: [
         {
           role: 'system',

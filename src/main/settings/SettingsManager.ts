@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoCorrect: false,
   autoCopy: true,
   windowSettings: {
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     opacity: 1.0,
     position: {
       x: -1,

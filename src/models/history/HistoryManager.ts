@@ -5,7 +5,7 @@
  */
 
 import { CorrectionHistory, CorrectionMode } from '../../types/interfaces';
-import { Database } from 'sqlite3';
+import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -28,7 +28,7 @@ export interface HistoryStats {
 }
 
 export class HistoryManager {
-  private db!: Database; // Using definite assignment assertion since it's initialized in initialize()
+  private db!: Database.Database;
   private dbPath: string;
   private initialized: boolean = false;
 
@@ -46,25 +46,17 @@ export class HistoryManager {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    return new Promise((resolve, reject) => {
-      this.db = new Database(this.dbPath, (err) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        this.createTables()
-          .then(() => {
-            this.initialized = true;
-            resolve();
-          })
-          .catch(reject);
-      });
-    });
+    try {
+      this.db = new Database(this.dbPath);
+      await this.createTables();
+      this.initialized = true;
+    } catch (error) {
+      throw error;
+    }
   }
 
   private async createTables(): Promise<void> {
-    const createTableSQL = `
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS correction_history (
         id TEXT PRIMARY KEY,
         original_text TEXT NOT NULL,
@@ -81,9 +73,7 @@ export class HistoryManager {
       CREATE INDEX IF NOT EXISTS idx_mode ON correction_history(mode);
       CREATE INDEX IF NOT EXISTS idx_favorite ON correction_history(favorite);
       CREATE INDEX IF NOT EXISTS idx_text_search ON correction_history(original_text, corrected_text);
-    `;
-
-    await this.runAsync(createTableSQL);
+    `);
   }
 
   async addEntry(entry: Omit<CorrectionHistory, 'id' | 'timestamp'>): Promise<string> {
@@ -104,7 +94,8 @@ export class HistoryManager {
       addedAt: timestamp.toISOString()
     });
 
-    await this.runAsync(sql, [
+    const stmt = this.db.prepare(sql);
+    stmt.run(
       id,
       entry.originalText,
       entry.correctedText,
@@ -113,7 +104,7 @@ export class HistoryManager {
       entry.model,
       entry.favorite ? 1 : 0,
       metadata
-    ]);
+    );
 
     return id;
   }
@@ -122,7 +113,8 @@ export class HistoryManager {
     await this.ensureInitialized();
 
     const sql = `SELECT * FROM correction_history WHERE id = ?`;
-    const row = await this.getAsync(sql, [id]);
+    const stmt = this.db.prepare(sql);
+    const row = stmt.get(id);
 
     return row ? this.rowToHistory(row) : null;
   }
@@ -136,8 +128,9 @@ export class HistoryManager {
       LIMIT ? OFFSET ?
     `;
 
-    const rows = await this.allAsync(sql, [limit, offset]);
-    return rows.map(row => this.rowToHistory(row));
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(limit, offset);
+    return rows.map((row: any) => this.rowToHistory(row));
   }
 
   async searchHistory(options: HistorySearchOptions): Promise<CorrectionHistory[]> {
@@ -183,22 +176,25 @@ export class HistoryManager {
       }
     }
 
-    const rows = await this.allAsync(sql, params);
-    return rows.map(row => this.rowToHistory(row));
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(...params);
+    return rows.map((row: any) => this.rowToHistory(row));
   }
 
   async updateFavorite(id: string, favorite: boolean): Promise<void> {
     await this.ensureInitialized();
 
     const sql = 'UPDATE correction_history SET favorite = ? WHERE id = ?';
-    await this.runAsync(sql, [favorite ? 1 : 0, id]);
+    const stmt = this.db.prepare(sql);
+    stmt.run(favorite ? 1 : 0, id);
   }
 
   async deleteEntry(id: string): Promise<boolean> {
     await this.ensureInitialized();
 
     const sql = 'DELETE FROM correction_history WHERE id = ?';
-    const result = await this.runAsync(sql, [id]);
+    const stmt = this.db.prepare(sql);
+    const result = stmt.run(id);
     
     return result.changes > 0;
   }
@@ -206,7 +202,7 @@ export class HistoryManager {
   async clearHistory(): Promise<void> {
     await this.ensureInitialized();
 
-    await this.runAsync('DELETE FROM correction_history');
+    this.db.exec('DELETE FROM correction_history');
   }
 
   async getStats(): Promise<HistoryStats> {
@@ -224,13 +220,11 @@ export class HistoryManager {
     `;
     const favoriteCountSQL = 'SELECT COUNT(*) as count FROM correction_history WHERE favorite = 1';
 
-    const [totalCount, byMode, avgLength, mostActiveDay, favoriteCount] = await Promise.all([
-      this.getAsync(totalCountSQL),
-      this.allAsync(byModeSQL),
-      this.getAsync(avgLengthSQL),
-      this.getAsync(mostActiveDaySQL),
-      this.getAsync(favoriteCountSQL)
-    ]);
+    const totalCount = this.db.prepare(totalCountSQL).get();
+    const byMode = this.db.prepare(byModeSQL).all();
+    const avgLength = this.db.prepare(avgLengthSQL).get();
+    const mostActiveDay = this.db.prepare(mostActiveDaySQL).get();
+    const favoriteCount = this.db.prepare(favoriteCountSQL).get();
 
     const modeStats: Record<CorrectionMode, number> = {
       business: 0,
@@ -239,16 +233,16 @@ export class HistoryManager {
       presentation: 0
     };
 
-    byMode.forEach(row => {
+    byMode.forEach((row: any) => {
       modeStats[row.mode as CorrectionMode] = row.count;
     });
 
     return {
-      totalCount: totalCount?.count || 0,
+      totalCount: (totalCount as any)?.count || 0,
       byMode: modeStats,
-      averageTextLength: Math.round(avgLength?.avg_length || 0),
-      mostActiveDay: mostActiveDay?.day || 'N/A',
-      favoriteCount: favoriteCount?.count || 0
+      averageTextLength: Math.round((avgLength as any)?.avg_length || 0),
+      mostActiveDay: (mostActiveDay as any)?.day || 'N/A',
+      favoriteCount: (favoriteCount as any)?.count || 0
     };
   }
 
@@ -320,7 +314,7 @@ export class HistoryManager {
   }
 
   private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -329,44 +323,11 @@ export class HistoryManager {
     }
   }
 
-  private runAsync(sql: string, params?: any[]): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.db.run(sql, params || [], function(err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  }
-
-  private getAsync(sql: string, params?: any[]): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.db.get(sql, params || [], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  }
-
-  private allAsync(sql: string, params?: any[]): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      this.db.all(sql, params || [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-  }
 
   async close(): Promise<void> {
     if (this.db) {
-      return new Promise((resolve, reject) => {
-        this.db.close((err) => {
-          if (err) reject(err);
-          else {
-            this.initialized = false;
-            resolve();
-          }
-        });
-      });
+      this.db.close();
+      this.initialized = false;
     }
   }
 }

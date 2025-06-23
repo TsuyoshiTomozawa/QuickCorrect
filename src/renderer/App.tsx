@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TextInput, TextOutput } from './components';
+import { TextInput, TextOutput, HotkeyInput } from './components';
 import { 
   useTextSelection, 
   useWindowControls, 
@@ -199,37 +199,60 @@ const App: React.FC = () => {
             <div style={{ padding: '20px' }}>
               <h3>設定</h3>
               <div style={{ marginTop: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '10px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={settings?.autoCorrect || false}
-                    onChange={(e) => updateSettings({ autoCorrect: e.target.checked })}
-                  />
-                  {' '}自動添削
-                </label>
-                <label style={{ display: 'block', marginBottom: '10px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={settings?.autoCopy || false}
-                    onChange={(e) => updateSettings({ autoCopy: e.target.checked })}
-                  />
-                  {' '}自動コピー
-                </label>
-                <label style={{ display: 'block', marginBottom: '10px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={settings?.privacy.saveHistory || false}
-                    onChange={(e) => updateSettings({ 
-                      privacy: { 
-                        saveHistory: e.target.checked,
-                        analyticsEnabled: settings?.privacy?.analyticsEnabled ?? false
-                      } 
-                    })}
-                  />
-                  {' '}履歴を保存
-                </label>
+                <HotkeyInput
+                  value={settings?.hotkey || 'CommandOrControl+T'}
+                  onChange={(hotkey) => {
+                    updateSettings({ hotkey });
+                  }}
+                  label="ホットキー"
+                />
+                
+                <div style={{ marginTop: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={settings?.autoCorrect || false}
+                      onChange={(e) => updateSettings({ autoCorrect: e.target.checked })}
+                    />
+                    {' '}自動添削
+                  </label>
+                  <label style={{ display: 'block', marginBottom: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={settings?.autoCopy || false}
+                      onChange={(e) => updateSettings({ autoCopy: e.target.checked })}
+                    />
+                    {' '}自動コピー
+                  </label>
+                  <label style={{ display: 'block', marginBottom: '10px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={settings?.privacy.saveHistory || false}
+                      onChange={(e) => updateSettings({ 
+                        privacy: { 
+                          saveHistory: e.target.checked,
+                          analyticsEnabled: settings?.privacy?.analyticsEnabled ?? false
+                        } 
+                      })}
+                    />
+                    {' '}履歴を保存
+                  </label>
+                </div>
               </div>
-              <button onClick={() => setShowSettings(false)}>閉じる</button>
+              <button 
+                onClick={() => setShowSettings(false)}
+                style={{
+                  marginTop: '20px',
+                  padding: '8px 16px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                閉じる
+              </button>
             </div>
           </SidePanel>
         )}

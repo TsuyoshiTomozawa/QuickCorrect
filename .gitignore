@@ -104,3 +104,6 @@ __tests__/
 # Temporary files
 tmp/
 temp/
+
+# Webpack cache
+.webpack-cache/

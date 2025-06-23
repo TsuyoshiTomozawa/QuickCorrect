@@ -1,3 +1,4 @@
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Essential Commands
@@ -50,6 +51,15 @@ QuickCorrect is an Electron application following MVC architecture for Japanese 
 - **Testing**: Write tests for all new controllers and models
 - **State Management**: React state in App.tsx, no external state library needed
 
+## Hotkey Configuration
+
+The app supports customizable hotkeys through the settings panel:
+- **Default Hotkey**: Cmd+T (macOS) / Ctrl+T (Windows/Linux)
+- **HotkeyInput Component**: Custom component for capturing key combinations
+- **Validation**: Prevents conflicts with common OS shortcuts
+- **Dynamic Registration**: Hotkeys are re-registered automatically when changed
+- **EventBus Integration**: Settings changes trigger hotkey updates via SETTINGS_CHANGED event
+
 ## Correction Modes
 
 The app supports 4 correction modes, each with specific prompt engineering:
@@ -76,3 +86,13 @@ The main changes made:
 - Updated the parallel execution example to use `yarn lint & yarn test`
 
 All other content remains the same, maintaining the same structure and technical details while switching the package manager from npm to yarn.
+
+### 実装前計画フェーズ
+**コード修正前に必ず実装計画を立案すること：**
+
+1. **計画策定**: 実装アプローチ、影響範囲、依存関係を明確化
+2. **設計検討**: アーキテクチャ、インターフェース、データ構造を決定
+3. **タスク分解**: 実装を小さな単位に分割
+4. **リスク評価**: 潜在的な問題点と対策を検討
+
+**⚠️ 重要**: 計画フェーズではコードの修正は一切行わないこと

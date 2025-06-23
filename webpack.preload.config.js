@@ -1,12 +1,11 @@
 const path = require('path');
-const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 const isDev = process.env.NODE_ENV === 'development';
 
 module.exports = {
   mode: process.env.NODE_ENV || 'development',
-  entry: './src/main/main.ts',
-  target: 'electron-main',
+  entry: './src/preload/preload.ts',
+  target: 'electron-preload',
   devtool: isDev ? 'eval-cheap-module-source-map' : 'source-map',
   cache: {
     type: 'filesystem',
@@ -28,11 +27,6 @@ module.exports = {
                 dynamicImport: true,
               },
               target: 'es2020',
-              transform: {
-                react: {
-                  runtime: 'automatic',
-                },
-              },
             },
             module: {
               type: 'commonjs',
@@ -42,33 +36,14 @@ module.exports = {
       },
     ],
   },
-  plugins: isDev ? [
-    new ForkTsCheckerWebpackPlugin({
-      typescript: {
-        configFile: './tsconfig.json',
-      },
-    }),
-  ] : [],
   resolve: {
     extensions: ['.ts', '.js'],
     alias: {
-      '@': path.resolve(__dirname, 'src'),
-      '@main': path.resolve(__dirname, 'src/main'),
-      '@models': path.resolve(__dirname, 'src/models'),
-      '@controllers': path.resolve(__dirname, 'src/controllers'),
       '@types': path.resolve(__dirname, 'src/types'),
     },
   },
   output: {
-    filename: 'main.js',
-    path: path.resolve(__dirname, 'dist/main'),
-  },
-  externals: {
-    electron: 'commonjs electron',
-    'better-sqlite3': 'commonjs better-sqlite3',
-  },
-  node: {
-    __dirname: false,
-    __filename: false,
+    filename: 'preload.js',
+    path: path.resolve(__dirname, 'dist/preload'),
   },
 };

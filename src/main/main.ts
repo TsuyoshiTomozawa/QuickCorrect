@@ -42,10 +42,9 @@ async function createWindow(): Promise<void> {
     minWidth: 700,
     minHeight: 450,
     show: false,
-    alwaysOnTop: settings.windowSettings.alwaysOnTop,
+    alwaysOnTop: false, // 常に最前面に表示しない
     opacity: settings.windowSettings.opacity,
     frame: true,
-    titleBarStyle: 'hiddenInset',
     backgroundColor: '#ffffff',
     webPreferences: {
       nodeIntegration: false,
@@ -64,9 +63,29 @@ async function createWindow(): Promise<void> {
     );
   }
 
+  // CSPヘッダーの設定
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: https:; " +
+          "font-src 'self' data:; " +
+          "connect-src 'self' http://localhost:* ws://localhost:* https://api.openai.com; " +
+          "media-src 'self'; " +
+          "object-src 'none'; " +
+          "frame-src 'none';"
+        ]
+      }
+    });
+  });
+
   // 開発環境設定
   if (isDevelopment) {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:9000');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -264,30 +283,9 @@ function createMockAIProvider(): AIProvider {
 /**
  * IPCハンドラーを設定
  */
-function setupIPC(): void {
+async function setupIPC(): Promise<void> {
   // Model層のIPCハンドラーを初期化
-  initializeIPCHandlers();
-
-  // 手動テキスト添削
-  ipcMain.handle('correct-text', async (_event, text: string, mode?: CorrectionMode) => {
-    try {
-      if (workflowOrchestrator) {
-        await workflowOrchestrator.processManualText(text, mode);
-        return { success: true };
-      } else {
-        // ワークフローが初期化されていない場合は直接実行
-        const result = await correctionController.correctText(text, mode || 'business');
-        return result;
-      }
-    } catch (error) {
-      console.error('Correction error:', error);
-      if (workflowOrchestrator) {
-        return { success: false, error: (error as Error).message };
-      } else {
-        throw error;
-      }
-    }
-  });
+  await initializeIPCHandlers();
 
   // 設定取得
   ipcMain.handle('get-settings', async () => {
@@ -383,6 +381,7 @@ function setupIPC(): void {
  */
 if (false) {
   // この関数は将来的に使用される可能性があるため保持
+  // @ts-ignore - 未使用の関数だが将来のために保持
   async function showWindowWithSelectedText(): Promise<void> {
     try {
       // 選択されたテキストを取得
@@ -409,7 +408,6 @@ if (false) {
       console.error('Error processing selected text:', error);
     }
   }
-  showWindowWithSelectedText(); // TypeScriptの警告を回避
 }
 
 /**
@@ -450,7 +448,7 @@ app.whenReady().then(async () => {
   await createWindow();
   createTray();
   await initializeControllers();
-  setupIPC();
+  await setupIPC();
   setupErrorHandlers();
 
   // macOS: Dockアイコンクリック時の処理
