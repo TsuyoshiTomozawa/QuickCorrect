@@ -196,8 +196,92 @@ const App: React.FC = () => {
             exit={{ x: 300 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '20px', height: '100%', overflowY: 'auto' }}>
               <h3>設定</h3>
+              
+              {/* API Provider Selection */}
+              <div style={{ marginTop: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AIプロバイダー</label>
+                <select
+                  value={settings?.aiSettings?.primaryProvider || 'openai'}
+                  onChange={(e) => {
+                    updateSettings({
+                      aiSettings: {
+                        ...settings?.aiSettings,
+                        primaryProvider: e.target.value as 'openai' | 'google'
+                      }
+                    });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd'
+                  }}
+                >
+                  <option value="openai">OpenAI GPT-3.5</option>
+                  <option value="google">Google Gemini Pro</option>
+                </select>
+              </div>
+              
+              {/* API Keys */}
+              <div style={{ marginTop: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>APIキー</label>
+                
+                {/* OpenAI API Key */}
+                {(settings?.aiSettings?.primaryProvider === 'openai' || !settings?.aiSettings?.primaryProvider) && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '3px', fontSize: '14px' }}>OpenAI</label>
+                    <input
+                      type="password"
+                      value={settings?.apiKeys?.openai || ''}
+                      onChange={(e) => {
+                        updateSettings({
+                          apiKeys: {
+                            ...settings?.apiKeys,
+                            openai: e.target.value
+                          }
+                        });
+                      }}
+                      placeholder="sk-..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* Gemini API Key */}
+                {settings?.aiSettings?.primaryProvider === 'google' && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '3px', fontSize: '14px' }}>Google Gemini</label>
+                    <input
+                      type="password"
+                      value={settings?.apiKeys?.google || ''}
+                      onChange={(e) => {
+                        updateSettings({
+                          apiKeys: {
+                            ...settings?.apiKeys,
+                            google: e.target.value
+                          }
+                        });
+                      }}
+                      placeholder="AIza..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* Hotkey */}
               <div style={{ marginTop: '20px' }}>
                 <HotkeyInput
                   value={settings?.hotkey || 'CommandOrControl+T'}
@@ -237,6 +321,59 @@ const App: React.FC = () => {
                     />
                     {' '}履歴を保存
                   </label>
+                </div>
+                
+                {/* AI Settings */}
+                <div style={{ marginTop: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AI設定</label>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '3px', fontSize: '14px' }}>Temperature (0-2)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={settings?.aiSettings?.temperature || 0.7}
+                      onChange={(e) => {
+                        updateSettings({
+                          aiSettings: {
+                            ...settings?.aiSettings,
+                            temperature: parseFloat(e.target.value)
+                          }
+                        });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '3px', fontSize: '14px' }}>最大トークン数</label>
+                    <input
+                      type="number"
+                      min="100"
+                      max="4000"
+                      step="100"
+                      value={settings?.aiSettings?.maxTokens || 2000}
+                      onChange={(e) => {
+                        updateSettings({
+                          aiSettings: {
+                            ...settings?.aiSettings,
+                            maxTokens: parseInt(e.target.value)
+                          }
+                        });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <button 

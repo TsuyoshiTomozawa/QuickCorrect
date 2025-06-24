@@ -37,9 +37,12 @@ export async function initializeIPCHandlers(): Promise<void> {
   
   // Load settings and initialize AI provider
   const settings = await settingsManager.getSettings();
-  if (settings.apiKeys?.openai) {
-    aiProvider = ProviderFactory.createProvider('openai', {
-      apiKey: settings.apiKeys.openai,
+  const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
+  const apiKey = settings.apiKeys?.[primaryProvider];
+  
+  if (apiKey) {
+    aiProvider = ProviderFactory.createProvider(primaryProvider, {
+      apiKey,
       temperature: settings.aiSettings?.temperature,
       maxTokens: settings.aiSettings?.maxTokens
     });
