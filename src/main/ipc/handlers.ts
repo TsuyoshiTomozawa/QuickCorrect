@@ -7,6 +7,7 @@
 
 import { ipcMain, clipboard, app, systemPreferences } from 'electron';
 import * as os from 'os';
+import * as dotenv from 'dotenv';
 import { 
   CorrectionMode, 
   CorrectionHistory,
@@ -16,6 +17,9 @@ import { ProviderFactory, HistoryManager } from '../../models';
 import { SettingsManager } from '../settings/SettingsManager';
 import { validateCorrectionRequest, validateSettings } from '../validation/validators';
 import * as path from 'path';
+
+// Load environment variables
+dotenv.config();
 
 // Initialize managers
 let historyManager: HistoryManager;
@@ -37,9 +41,14 @@ export async function initializeIPCHandlers(): Promise<void> {
   
   // Load settings and initialize AI provider
   const settings = await settingsManager.getSettings();
-  if (settings.apiKeys?.openai) {
+  
+  // First try to get API key from environment variable
+  const apiKeyFromEnv = process.env.OPENAI_API_KEY;
+  const apiKey = apiKeyFromEnv || settings.apiKeys?.openai;
+  
+  if (apiKey) {
     aiProvider = ProviderFactory.createProvider('openai', {
-      apiKey: settings.apiKeys.openai,
+      apiKey: apiKey,
       temperature: settings.aiSettings?.temperature,
       maxTokens: settings.aiSettings?.maxTokens
     });
@@ -125,7 +134,8 @@ function registerSettingsHandlers(): void {
       // Re-initialize AI provider if API key changed
       if (settings.apiKeys) {
         const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
-        const apiKey = settings.apiKeys[primaryProvider];
+        const apiKeyFromEnv = process.env.OPENAI_API_KEY;
+        const apiKey = apiKeyFromEnv || settings.apiKeys[primaryProvider];
         
         if (apiKey) {
           aiProvider = ProviderFactory.createProvider(primaryProvider, {

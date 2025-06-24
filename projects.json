@@ -1,0 +1,45 @@
+{
+  "projects": {
+    "pwe-api": {
+      "path": "/Users/michael244/work/pwe-api",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "pwe-frontend": {
+      "path": "/Users/michael244/work/pwe-front-vue",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "pwe-admin": {
+      "path": "/Users/michael244/work/pwe-admin",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "pwe-admin-api": {
+      "path": "/Users/michael244/work/pwe-admin-api",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "pwe-lp": {
+      "path": "/Users/michael244/work/pwe-lp",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "git-grow-pro": {
+      "path": "/Users/michael244/work/git-grow-pro",
+      "type": "git",
+      "default_branch": "develop"
+    },
+    "udemy-langchain-course": {
+      "path": "/Users/michael244/Documents/Obsidian Vault/Udemy/コース/LangChain × ChatGPT/台本",
+      "type": "directory",
+      "default_branch": "main"
+    },
+    "QuickCorrect": {
+      "path": "/Users/michael244/work/QuickCorrect",
+      "type": "git",
+      "default_branch": "main"
+    }
+  },
+  "worktree_base": "/tmp/agent-worktrees"
+}
