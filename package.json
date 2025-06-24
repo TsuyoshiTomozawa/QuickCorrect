@@ -34,6 +34,7 @@
     "@google/generative-ai": "^0.24.1",
     "better-sqlite3": "^11.10.0",
     "clipboardy": "^4.0.0",
+    "dotenv": "^16.5.0",
     "electron-store": "^8.1.0",
     "framer-motion": "^11.2.10",
     "node-global-key-listener": "^0.1.1",

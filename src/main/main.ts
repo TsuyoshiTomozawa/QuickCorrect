@@ -7,14 +7,18 @@
 
 import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut } from 'electron';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
 import { eventBus, EventType } from '../services/EventBus';
 import { HotkeyController } from '../controllers/HotkeyController';
 import { CorrectionController, AIProvider } from '../controllers/CorrectionController';
 import { ClipboardController } from '../controllers/ClipboardController';
 import { WorkflowOrchestrator } from '../services/WorkflowOrchestrator';
-import { CorrectionMode, CorrectionResult, AppSettings } from '../types/interfaces';
+import { CorrectionMode, CorrectionResult } from '../types/interfaces';
 import { initializeIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
 import { SettingsManager } from './settings/SettingsManager';
+
+// Load environment variables from .env file
+dotenv.config();
 
 // グローバル変数
 let mainWindow: BrowserWindow | null = null;
@@ -286,37 +290,6 @@ function createMockAIProvider(): AIProvider {
 async function setupIPC(): Promise<void> {
   // Model層のIPCハンドラーを初期化
   await initializeIPCHandlers();
-
-  // 設定取得
-  ipcMain.handle('get-settings', async () => {
-    const savedSettings = await settingsManager.getSettings();
-    return {
-      ...savedSettings,
-      hotkey: hotkeyController?.getCurrentHotkey() || savedSettings.hotkey,
-      defaultMode: correctionController?.getMode() || savedSettings.defaultMode
-    } as AppSettings;
-  });
-
-  // 設定保存
-  ipcMain.handle('save-settings', async (_event, settings: Partial<AppSettings>) => {
-    try {
-      await settingsManager.updateSettings(settings);
-      eventBus.emit(EventType.SETTINGS_CHANGED, settings);
-      eventBus.emit(EventType.SETTINGS_SAVED, { 
-        settings,
-        timestamp: new Date() 
-      });
-      
-      // ホットキーの更新
-      if (settings.hotkey && hotkeyController && settings.hotkey !== hotkeyController.getCurrentHotkey()) {
-        await hotkeyController.register(settings.hotkey);
-      }
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: (error as Error).message };
-    }
-  });
 
   // ウィンドウ制御
   ipcMain.handle('hide-window', () => {

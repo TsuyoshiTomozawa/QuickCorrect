@@ -15,7 +15,11 @@
       "Bash(yarn build)",
       "Bash(yarn dev)",
       "Bash(yarn add:*)",
-      "Bash(yarn:*)"
+      "Bash(yarn:*)",
+      "Bash(kill:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr review:*)"
     ],
     "deny": []
   },

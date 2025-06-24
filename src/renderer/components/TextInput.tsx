@@ -238,7 +238,7 @@ export const TextInput: React.FC<TextInputProps> = ({
 
         <CorrectButton
           $disabled={isLoading || !value.trim()}
-          onClick={onCorrect}
+          onClick={() => onCorrect()}
           onMouseEnter={() => setShowHint(true)}
           onMouseLeave={() => setShowHint(false)}
           whileHover={{ scale: isLoading || !value.trim() ? 1 : 1.02 }}

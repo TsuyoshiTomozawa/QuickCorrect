@@ -96,3 +96,9 @@ All other content remains the same, maintaining the same structure and technical
 4. **リスク評価**: 潜在的な問題点と対策を検討
 
 **⚠️ 重要**: 計画フェーズではコードの修正は一切行わないこと
+
+## ビルド確認ルール
+実装・修正時は必ずビルドが通ることを確認すること
+すべてのコード修正後、yarn build または yarn dev でエラーが発生しないことを確認する
+
+作業時にローカルサーバーを起動した場合は、作業終了時に必ずサーバーを停止してください。

@@ -7,15 +7,19 @@
 
 import { ipcMain, clipboard, app, systemPreferences } from 'electron';
 import * as os from 'os';
+import * as dotenv from 'dotenv';
 import { 
   CorrectionMode, 
   CorrectionHistory,
-  AppSettings 
+  AppSettings
 } from '../../types/interfaces';
 import { ProviderFactory, HistoryManager } from '../../models';
 import { SettingsManager } from '../settings/SettingsManager';
 import { validateCorrectionRequest, validateSettings } from '../validation/validators';
 import * as path from 'path';
+
+// Load environment variables
+dotenv.config();
 
 // Initialize managers
 let historyManager: HistoryManager;
@@ -38,7 +42,10 @@ export async function initializeIPCHandlers(): Promise<void> {
   // Load settings and initialize AI provider
   const settings = await settingsManager.getSettings();
   const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
-  const apiKey = settings.apiKeys?.[primaryProvider];
+  
+  // First try to get API key from environment variable (for OpenAI only)
+  const apiKeyFromEnv = primaryProvider === 'openai' ? process.env.OPENAI_API_KEY : undefined;
+  const apiKey = apiKeyFromEnv || settings.apiKeys?.[primaryProvider];
   
   if (apiKey) {
     aiProvider = ProviderFactory.createProvider(primaryProvider, {
@@ -70,7 +77,7 @@ function registerCorrectionHandlers(): void {
 
       // Check if AI provider is initialized
       if (!aiProvider) {
-        throw new Error('AI provider not configured. Please set API key in settings.');
+        throw new Error('APIキーが設定されていません。設定画面でOpenAI APIキーを入力してください。');
       }
 
       // Perform text correction
@@ -91,11 +98,8 @@ function registerCorrectionHandlers(): void {
       return result;
     } catch (error: any) {
       console.error('Text correction error:', error);
-      throw {
-        code: 'CORRECTION_ERROR',
-        message: error.message || 'Failed to correct text',
-        details: error
-      };
+      // Return a proper error object that can be serialized
+      throw new Error(error.message || 'Failed to correct text');
     }
   });
 }
@@ -131,7 +135,8 @@ function registerSettingsHandlers(): void {
       // Re-initialize AI provider if API key changed
       if (settings.apiKeys) {
         const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
-        const apiKey = settings.apiKeys[primaryProvider];
+        const apiKeyFromEnv = primaryProvider === 'openai' ? process.env.OPENAI_API_KEY : undefined;
+        const apiKey = apiKeyFromEnv || settings.apiKeys[primaryProvider];
         
         if (apiKey) {
           aiProvider = ProviderFactory.createProvider(primaryProvider, {
@@ -345,6 +350,7 @@ function registerSystemHandlers(): void {
     }
   });
 }
+
 
 /**
  * Clean up IPC handlers and close connections

@@ -171,7 +171,10 @@ const electronAPI: ElectronAPI = {
       throw new Error('Channel not allowed');
     }
     return ipcRenderer.invoke('get-statistics');
-  }
+  },
+
+  // Platform info for renderer process
+  platform: process.platform as NodeJS.Platform
 };
 
 // Expose the API to the renderer process
