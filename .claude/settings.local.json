@@ -19,7 +19,9 @@
       "Bash(kill:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr diff:*)",
-      "Bash(gh pr review:*)"
+      "Bash(gh pr review:*)",
+      "mcp__github__add_pull_request_review_comment",
+      "mcp__github__get_pull_request_reviews"
     ],
     "deny": []
   },

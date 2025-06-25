@@ -221,7 +221,7 @@ const App: React.FC = () => {
                   }}
                 >
                   <option value="openai">OpenAI GPT-3.5</option>
-                  <option value="google">Google Gemini Pro</option>
+                  <option value="gemini">Google Gemini Pro</option>
                 </select>
               </div>
               
@@ -256,17 +256,17 @@ const App: React.FC = () => {
                 )}
                 
                 {/* Gemini API Key */}
-                {settings?.aiSettings?.primaryProvider === 'google' && (
+                {settings?.aiSettings?.primaryProvider === 'gemini' && (
                   <div style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', marginBottom: '3px', fontSize: '14px' }}>Google Gemini</label>
                     <input
                       type="password"
-                      value={settings?.apiKeys?.google || ''}
+                      value={settings?.apiKeys?.gemini || ''}
                       onChange={(e) => {
                         updateSettings({
                           apiKeys: {
                             ...settings?.apiKeys,
-                            google: e.target.value
+                            gemini: e.target.value
                           }
                         });
                       }}

@@ -28,16 +28,15 @@ import { GeminiProvider } from './providers/GeminiProvider';
 // Provider Factory for easy instantiation
 export class ProviderFactory {
   static createProvider(
-    type: 'openai' | 'anthropic' | 'google',
+    type: 'openai' | 'anthropic' | 'gemini',
     config: AIProviderConfig
   ): AIProvider {
     switch (type) {
       case 'openai':
         return new OpenAIProvider(config);
       case 'anthropic':
-        // TODO: Implement AnthropicProvider
         throw new Error('Anthropic provider not yet implemented');
-      case 'google':
+      case 'gemini':
         return new GeminiProvider(config);
       default:
         throw new Error(`Unknown provider type: ${type}`);

@@ -92,4 +92,95 @@ describe('GeminiProvider', () => {
       expect(typeof result).toBe('boolean');
     });
   });
+
+  describe('parseResponse', () => {
+    it('should parse valid JSON response', () => {
+      const response = JSON.stringify({
+        correctedText: '修正されたテキスト',
+        explanation: '文法を修正しました',
+        changes: [
+          { type: 'grammar', original: 'テスト', corrected: '修正されたテキスト' }
+        ]
+      });
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('修正されたテキスト');
+      expect(result.explanation).toBe('文法を修正しました');
+      expect(result.changes).toHaveLength(1);
+      expect(result.confidence).toBeGreaterThan(0);
+    });
+
+    it('should handle response with alternative field names', () => {
+      const response = JSON.stringify({
+        text: '修正されたテキスト',
+        summary: '文法を修正しました'
+      });
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('修正されたテキスト');
+      expect(result.explanation).toBe('文法を修正しました');
+    });
+
+    it('should handle non-JSON response with 修正後 marker', () => {
+      const response = `以下が修正後のテキストです：
+修正後：
+これは修正されたテキストです。
+文法と表現を改善しました。`;
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('これは修正されたテキストです。');
+      expect(result.explanation).toBe('文法と表現を改善しました。');
+    });
+
+    it('should handle non-JSON response with 訂正後 marker', () => {
+      const response = `訂正後：
+修正されたテキスト
+理由：文法エラーを修正`;
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('修正されたテキスト');
+      expect(result.explanation).toBe('理由：文法エラーを修正');
+    });
+
+    it('should use first line as corrected text for simple responses', () => {
+      const response = `これは修正されたテキストです。
+追加の説明情報`;
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('これは修正されたテキストです。');
+      expect(result.explanation).toBe('追加の説明情報');
+    });
+
+    it('should handle empty response', () => {
+      expect(() => {
+        provider['parseResponse']('', 'テスト');
+      }).toThrow('Empty response from Gemini');
+    });
+
+    it('should handle response with embedded JSON', () => {
+      const response = `APIからの応答：
+{"correctedText": "修正済み", "explanation": "修正しました"}
+以上が結果です。`;
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      expect(result.text).toBe('修正済み');
+      expect(result.explanation).toBe('修正しました');
+    });
+
+    it('should handle malformed JSON gracefully', () => {
+      const response = '{ "text": "修正済み", invalid json }';
+      
+      const result = provider['parseResponse'](response, 'テスト');
+      
+      // Should fall back to treating it as plain text
+      expect(result.text).toBe('{ "text": "修正済み", invalid json }');
+      expect(result.explanation).toContain('テキストを修正しました');
+    });
+  });
 });
