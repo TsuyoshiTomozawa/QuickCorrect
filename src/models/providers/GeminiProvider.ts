@@ -100,9 +100,9 @@ export class GeminiProvider extends AIProvider {
     const text = response.text();
     
     // Update usage statistics
-    if (result.response.usageMetadata) {
-      const totalTokens = (result.response.usageMetadata.promptTokenCount || 0) + 
-                         (result.response.usageMetadata.candidatesTokenCount || 0);
+    if (response.usageMetadata) {
+      const totalTokens = (response.usageMetadata.promptTokenCount || 0) + 
+                         (response.usageMetadata.candidatesTokenCount || 0);
       this.usage.tokensUsed += totalTokens;
       this.usage.requestCount += 1;
       this.usage.cost += totalTokens * this.metadata.costPerToken;
@@ -222,12 +222,12 @@ export class GeminiProvider extends AIProvider {
           reason: 'Text correction',
           position: {
             start: position,
-            end: position + originalWord.length
+            end: position + [...originalWord].length
           }
         });
       }
 
-      position += originalWord.length;
+      position += [...originalWord].length;
     }
 
     return changes;
