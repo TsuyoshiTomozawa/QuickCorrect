@@ -41,14 +41,15 @@ export async function initializeIPCHandlers(): Promise<void> {
   
   // Load settings and initialize AI provider
   const settings = await settingsManager.getSettings();
+  const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
   
-  // First try to get API key from environment variable
-  const apiKeyFromEnv = process.env.OPENAI_API_KEY;
-  const apiKey = apiKeyFromEnv || settings.apiKeys?.openai;
+  // First try to get API key from environment variable (for OpenAI only)
+  const apiKeyFromEnv = primaryProvider === 'openai' ? process.env.OPENAI_API_KEY : undefined;
+  const apiKey = apiKeyFromEnv || settings.apiKeys?.[primaryProvider];
   
   if (apiKey) {
-    aiProvider = ProviderFactory.createProvider('openai', {
-      apiKey: apiKey,
+    aiProvider = ProviderFactory.createProvider(primaryProvider, {
+      apiKey,
       temperature: settings.aiSettings?.temperature,
       maxTokens: settings.aiSettings?.maxTokens
     });
@@ -134,7 +135,7 @@ function registerSettingsHandlers(): void {
       // Re-initialize AI provider if API key changed
       if (settings.apiKeys) {
         const primaryProvider = settings.aiSettings?.primaryProvider || 'openai';
-        const apiKeyFromEnv = process.env.OPENAI_API_KEY;
+        const apiKeyFromEnv = primaryProvider === 'openai' ? process.env.OPENAI_API_KEY : undefined;
         const apiKey = apiKeyFromEnv || settings.apiKeys[primaryProvider];
         
         if (apiKey) {
