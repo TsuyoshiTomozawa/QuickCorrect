@@ -80,13 +80,13 @@ describe('GeminiProvider', () => {
   describe('checkAvailability', () => {
     it('should return boolean', async () => {
       // In real tests, we would mock the API call
-      jest.spyOn(provider as any, 'model').mockImplementation({
+      provider['model'] = {
         generateContent: jest.fn().mockResolvedValue({
           response: {
             text: () => 'test response'
           }
         })
-      } as any);
+      } as any;
 
       const result = await provider.checkAvailability();
       expect(typeof result).toBe('boolean');

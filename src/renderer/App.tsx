@@ -201,8 +201,9 @@ const App: React.FC = () => {
               
               {/* API Provider Selection */}
               <div style={{ marginTop: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AIプロバイダー</label>
+                <label htmlFor="aiProviderSelect" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>AIプロバイダー</label>
                 <select
+                  id="aiProviderSelect"
                   value={settings?.aiSettings?.primaryProvider || 'openai'}
                   onChange={(e) => {
                     updateSettings({
@@ -333,7 +334,7 @@ const App: React.FC = () => {
                       min="0"
                       max="2"
                       step="0.1"
-                      value={settings?.aiSettings?.temperature || 0.7}
+                      value={settings?.aiSettings?.temperature ?? 0.7}
                       onChange={(e) => {
                         updateSettings({
                           aiSettings: {
@@ -357,7 +358,7 @@ const App: React.FC = () => {
                       min="100"
                       max="4000"
                       step="100"
-                      value={settings?.aiSettings?.maxTokens || 2000}
+                      value={settings?.aiSettings?.maxTokens ?? 2000}
                       onChange={(e) => {
                         updateSettings({
                           aiSettings: {

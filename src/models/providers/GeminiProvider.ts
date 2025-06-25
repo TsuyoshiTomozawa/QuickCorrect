@@ -112,10 +112,13 @@ export class GeminiProvider extends AIProvider {
     }
 
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      // Try to extract JSON from the response - look for a complete JSON object
+      const jsonStartIndex = response.indexOf('{');
+      const jsonEndIndex = response.lastIndexOf('}');
+      
+      if (jsonStartIndex !== -1 && jsonEndIndex !== -1 && jsonEndIndex > jsonStartIndex) {
+        const jsonString = response.substring(jsonStartIndex, jsonEndIndex + 1);
+        const parsed = JSON.parse(jsonString);
         
         // Extract corrected text and changes
         const correctedText = parsed.correctedText || parsed.text || '';
@@ -165,7 +168,13 @@ export class GeminiProvider extends AIProvider {
   private extractChanges(
     original: string,
     corrected: string,
-    providedChanges: any[]
+    providedChanges: Array<{
+      type?: string;
+      original?: string;
+      corrected?: string;
+      reason?: string;
+      position?: number;
+    }>
   ): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
 
