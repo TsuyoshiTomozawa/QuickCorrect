@@ -1,12 +1,12 @@
 /**
- * GeminiProvider - Google Gemini implementation for text correction
+ * GeminiProvider - Google Gemini AI implementation for text correction
  * 
  * Implements the AIProvider interface for Google's Gemini models.
  */
 
 import { AIProvider, AIProviderConfig, AIProviderMetadata } from './AIProvider';
 import { CorrectionResult, CorrectionMode, CorrectionChange } from '../../types/interfaces';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 interface GeminiUsage {
   tokensUsed: number;
@@ -16,7 +16,7 @@ interface GeminiUsage {
 
 export class GeminiProvider extends AIProvider {
   private genAI: GoogleGenerativeAI;
-  private model: any;
+  private model: GenerativeModel;
   private usage: GeminiUsage = {
     tokensUsed: 0,
     requestCount: 0,
@@ -28,7 +28,7 @@ export class GeminiProvider extends AIProvider {
       name: 'gemini',
       displayName: 'Google Gemini 2.5 Flash Lite',
       version: '2.0',
-      maxInputLength: 12800,
+      maxInputLength: 30000, // Support up to 30k characters
       supportedModes: ['business', 'academic', 'casual', 'presentation'],
       costPerToken: 0.00000025 // Gemini Flash pricing per token
     };
@@ -37,13 +37,36 @@ export class GeminiProvider extends AIProvider {
     this.validateConfig();
 
     this.genAI = new GoogleGenerativeAI(this.config.apiKey);
+    
+    // Initialize Gemini model with safety settings
     this.model = this.genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash-lite-preview-06-17",
       generationConfig: {
         temperature: this.config.temperature || 0.7,
-        maxOutputTokens: this.config.maxTokens || 2000,
+        maxOutputTokens: this.config.maxTokens || 2048,
+        topP: 0.8,
+        topK: 40,
         responseMimeType: "application/json"
-      }
+      },
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+      ],
+      systemInstruction: 'あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。'
     });
   }
 
@@ -71,18 +94,10 @@ export class GeminiProvider extends AIProvider {
     }
   }
 
-  private async callGeminiAPI(prompt: string): Promise<any> {
-    const result = await this.model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [{
-          text: prompt
-        }]
-      }],
-      systemInstruction: 'あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。'
-    });
-
+  private async callGeminiAPI(prompt: string): Promise<string> {
+    const result = await this.model.generateContent(prompt);
     const response = await result.response;
+    const text = response.text();
     
     // Update usage statistics
     if (result.response.usageMetadata) {
@@ -91,51 +106,90 @@ export class GeminiProvider extends AIProvider {
       this.usage.tokensUsed += totalTokens;
       this.usage.requestCount += 1;
       this.usage.cost += totalTokens * this.metadata.costPerToken;
+    } else {
+      // Fallback: estimate tokens if metadata not available
+      const estimatedTokens = Math.ceil((prompt.length + text.length) / 4);
+      this.usage.tokensUsed += estimatedTokens;
+      this.usage.requestCount += 1;
+      this.usage.cost += estimatedTokens * this.metadata.costPerToken;
     }
 
-    return response;
+    return text;
   }
 
-  private parseResponse(response: any, originalText: string): Omit<CorrectionResult, 'processingTime' | 'model'> {
-    const content = response.text();
-    
-    if (!content) {
+  private parseResponse(response: string, originalText: string): Omit<CorrectionResult, 'processingTime' | 'model'> {
+    if (!response) {
       throw new Error('Empty response from Gemini');
     }
 
     try {
-      // Parse the JSON response
-      const parsed = JSON.parse(content);
+      // Try to extract JSON from the response - look for a complete JSON object
+      const jsonStartIndex = response.indexOf('{');
+      const jsonEndIndex = response.lastIndexOf('}');
       
-      // Extract corrected text and changes
-      const correctedText = parsed.correctedText || parsed.text || '';
-      const explanation = parsed.explanation || parsed.summary || '';
-      const changes = this.extractChanges(originalText, correctedText, parsed.changes || []);
+      if (jsonStartIndex !== -1 && jsonEndIndex !== -1 && jsonEndIndex > jsonStartIndex) {
+        const jsonString = response.substring(jsonStartIndex, jsonEndIndex + 1);
+        const parsed = JSON.parse(jsonString);
+        
+        // Extract corrected text and changes
+        const correctedText = parsed.correctedText || parsed.text || '';
+        const explanation = parsed.explanation || parsed.summary || '';
+        const changes = this.extractChanges(originalText, correctedText, parsed.changes || []);
 
-      return {
-        text: correctedText,
-        explanation,
-        changes,
-        confidence: this.calculateConfidence(originalText, correctedText, changes)
-      };
+        return {
+          text: correctedText,
+          explanation,
+          changes,
+          confidence: this.calculateConfidence(originalText, correctedText, changes)
+        };
+      }
     } catch (error) {
-      // Fallback for non-JSON responses
-      const lines = content.split('\n');
-      const correctedText = lines[0] || originalText;
-      
-      return {
-        text: correctedText,
-        explanation: lines.slice(1).join('\n'),
-        changes: this.extractChanges(originalText, correctedText, []),
-        confidence: 0.7
-      };
+      // Continue to fallback parsing
     }
+
+    // Fallback parsing for non-JSON responses
+    const lines = response.split('\n').filter(line => line.trim());
+    
+    // Try to find the corrected text (usually the first substantial paragraph)
+    let correctedText = originalText;
+    let explanation = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes('修正後') || line.includes('訂正後')) {
+        // Found corrected text marker
+        correctedText = lines[i + 1] || correctedText;
+        explanation = lines.slice(i + 2).join('\n');
+        break;
+      } else if (i === 0 && line.length > 20) {
+        // First line might be the corrected text
+        correctedText = line;
+        explanation = lines.slice(1).join('\n');
+      }
+    }
+
+    return {
+      text: correctedText,
+      explanation: explanation || 'テキストを修正しました。',
+      changes: this.extractChanges(originalText, correctedText, []),
+      confidence: 0.8
+    };
   }
 
   private extractChanges(
     original: string,
     corrected: string,
-    providedChanges: any[]
+    providedChanges: Array<{
+      type?: string;
+      original?: string;
+      corrected?: string;
+      reason?: string;
+      explanation?: string;
+      position?: {
+        start?: number;
+        end?: number;
+      };
+    }>
   ): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
 
@@ -196,8 +250,10 @@ export class GeminiProvider extends AIProvider {
 
   async checkAvailability(): Promise<boolean> {
     try {
+      // Test the API with a simple prompt
       const result = await this.model.generateContent('テスト');
-      return !!result.response;
+      const response = await result.response;
+      return response.text().length > 0;
     } catch (error) {
       return false;
     }

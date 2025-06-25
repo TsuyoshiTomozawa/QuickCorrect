@@ -7,6 +7,7 @@
 
 import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, globalShortcut } from 'electron';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
 import { eventBus, EventType } from '../services/EventBus';
 import { HotkeyController } from '../controllers/HotkeyController';
 import { CorrectionController, AIProvider } from '../controllers/CorrectionController';
@@ -15,6 +16,9 @@ import { WorkflowOrchestrator } from '../services/WorkflowOrchestrator';
 import { CorrectionMode, CorrectionResult } from '../types/interfaces';
 import { initializeIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
 import { SettingsManager } from './settings/SettingsManager';
+
+// Load environment variables from .env file
+dotenv.config();
 
 // グローバル変数
 let mainWindow: BrowserWindow | null = null;

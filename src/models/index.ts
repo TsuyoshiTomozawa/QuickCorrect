@@ -7,6 +7,7 @@
 // AI Providers
 export { AIProvider, AIProviderConfig, AIProviderMetadata } from './providers/AIProvider';
 export { OpenAIProvider } from './providers/OpenAIProvider';
+export { GeminiProvider } from './providers/GeminiProvider';
 
 // History Management
 export { HistoryManager, HistorySearchOptions, HistoryStats } from './history/HistoryManager';
@@ -22,22 +23,21 @@ export type {
 // Import needed types for ProviderFactory
 import { AIProvider, AIProviderConfig } from './providers/AIProvider';
 import { OpenAIProvider } from './providers/OpenAIProvider';
+import { GeminiProvider } from './providers/GeminiProvider';
 
 // Provider Factory for easy instantiation
 export class ProviderFactory {
   static createProvider(
-    type: 'openai' | 'anthropic' | 'google',
+    type: 'openai' | 'anthropic' | 'gemini',
     config: AIProviderConfig
   ): AIProvider {
     switch (type) {
       case 'openai':
         return new OpenAIProvider(config);
       case 'anthropic':
-        // TODO: Implement AnthropicProvider
         throw new Error('Anthropic provider not yet implemented');
-      case 'google':
-        // TODO: Implement GoogleProvider
-        throw new Error('Google provider not yet implemented');
+      case 'gemini':
+        return new GeminiProvider(config);
       default:
         throw new Error(`Unknown provider type: ${type}`);
     }
