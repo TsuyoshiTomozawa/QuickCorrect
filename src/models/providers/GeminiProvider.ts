@@ -26,11 +26,11 @@ export class GeminiProvider extends AIProvider {
   constructor(config: AIProviderConfig) {
     const metadata: AIProviderMetadata = {
       name: 'gemini',
-      displayName: 'Google Gemini Pro',
-      version: '1.0',
-      maxInputLength: 30000, // Gemini Pro supports up to 30k characters
+      displayName: 'Google Gemini 2.5 Flash Lite',
+      version: '2.0',
+      maxInputLength: 30000, // Support up to 30k characters
       supportedModes: ['business', 'academic', 'casual', 'presentation'],
-      costPerToken: 0.00000025 // Gemini Pro pricing per token (estimated)
+      costPerToken: 0.00000025 // Gemini Flash pricing per token
     };
 
     super(config, metadata);
@@ -38,14 +38,15 @@ export class GeminiProvider extends AIProvider {
 
     this.genAI = new GoogleGenerativeAI(this.config.apiKey);
     
-    // Initialize Gemini Pro model with safety settings
-    this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-pro',
+    // Initialize Gemini model with safety settings
+    this.model = this.genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash-lite-preview-06-17",
       generationConfig: {
         temperature: this.config.temperature || 0.7,
         maxOutputTokens: this.config.maxTokens || 2048,
         topP: 0.8,
         topK: 40,
+        responseMimeType: "application/json"
       },
       safetySettings: [
         {
@@ -65,6 +66,7 @@ export class GeminiProvider extends AIProvider {
           threshold: HarmBlockThreshold.BLOCK_NONE,
         },
       ],
+      systemInstruction: 'あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。'
     });
   }
 
@@ -97,11 +99,20 @@ export class GeminiProvider extends AIProvider {
     const response = await result.response;
     const text = response.text();
     
-    // Update usage statistics (estimate tokens - Gemini doesn't provide exact counts in API)
-    const estimatedTokens = Math.ceil((prompt.length + text.length) / 4);
-    this.usage.tokensUsed += estimatedTokens;
-    this.usage.requestCount += 1;
-    this.usage.cost += estimatedTokens * this.metadata.costPerToken;
+    // Update usage statistics
+    if (response.usageMetadata) {
+      const totalTokens = (response.usageMetadata.promptTokenCount || 0) + 
+                         (response.usageMetadata.candidatesTokenCount || 0);
+      this.usage.tokensUsed += totalTokens;
+      this.usage.requestCount += 1;
+      this.usage.cost += totalTokens * this.metadata.costPerToken;
+    } else {
+      // Fallback: estimate tokens if metadata not available
+      const estimatedTokens = Math.ceil((prompt.length + text.length) / 4);
+      this.usage.tokensUsed += estimatedTokens;
+      this.usage.requestCount += 1;
+      this.usage.cost += estimatedTokens * this.metadata.costPerToken;
+    }
 
     return text;
   }
@@ -173,7 +184,11 @@ export class GeminiProvider extends AIProvider {
       original?: string;
       corrected?: string;
       reason?: string;
-      position?: number;
+      explanation?: string;
+      position?: {
+        start?: number;
+        end?: number;
+      };
     }>
   ): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
@@ -207,12 +222,12 @@ export class GeminiProvider extends AIProvider {
           reason: 'Text correction',
           position: {
             start: position,
-            end: position + originalWord.length
+            end: position + [...originalWord].length
           }
         });
       }
 
-      position += originalWord.length;
+      position += [...originalWord].length;
     }
 
     return changes;
@@ -258,9 +273,7 @@ export class GeminiProvider extends AIProvider {
   protected generatePrompt(text: string, mode: CorrectionMode, context?: string): string {
     const basePrompt = super.generatePrompt(text, mode, context);
     
-    return `あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。
-
-${basePrompt}
+    return `${basePrompt}
 
 以下のJSON形式で回答してください:
 {
