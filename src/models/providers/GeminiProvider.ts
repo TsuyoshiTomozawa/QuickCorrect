@@ -1,12 +1,21 @@
 /**
  * GeminiProvider - Google Gemini AI implementation for text correction
- * 
+ *
  * Implements the AIProvider interface for Google's Gemini models.
  */
 
-import { AIProvider, AIProviderConfig, AIProviderMetadata } from './AIProvider';
-import { CorrectionResult, CorrectionMode, CorrectionChange } from '../../types/interfaces';
-import { GoogleGenerativeAI, GenerativeModel, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { AIProvider, AIProviderConfig, AIProviderMetadata } from "./AIProvider";
+import {
+  CorrectionResult,
+  CorrectionMode,
+  CorrectionChange,
+} from "../../types/interfaces";
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  HarmCategory,
+  HarmBlockThreshold,
+} from "@google/generative-ai";
 
 interface GeminiUsage {
   tokensUsed: number;
@@ -20,33 +29,33 @@ export class GeminiProvider extends AIProvider {
   private usage: GeminiUsage = {
     tokensUsed: 0,
     requestCount: 0,
-    cost: 0
+    cost: 0,
   };
 
   constructor(config: AIProviderConfig) {
     const metadata: AIProviderMetadata = {
-      name: 'gemini',
-      displayName: 'Google Gemini 2.5 Flash Lite',
-      version: '2.0',
+      name: "gemini",
+      displayName: "Google Gemini 2.5 Flash Lite",
+      version: "2.0",
       maxInputLength: 30000, // Support up to 30k characters
-      supportedModes: ['business', 'academic', 'casual', 'presentation'],
-      costPerToken: 0.00000025 // Gemini Flash pricing per token
+      supportedModes: ["business", "academic", "casual", "presentation"],
+      costPerToken: 0.00000025, // Gemini Flash pricing per token
     };
 
     super(config, metadata);
     this.validateConfig();
 
     this.genAI = new GoogleGenerativeAI(this.config.apiKey);
-    
+
     // Initialize Gemini model with safety settings
-    this.model = this.genAI.getGenerativeModel({ 
+    this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.5-flash-lite-preview-06-17",
       generationConfig: {
         temperature: this.config.temperature || 0.7,
         maxOutputTokens: this.config.maxTokens || 2048,
         topP: 0.8,
         topK: 40,
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
       },
       safetySettings: [
         {
@@ -66,14 +75,15 @@ export class GeminiProvider extends AIProvider {
           threshold: HarmBlockThreshold.BLOCK_NONE,
         },
       ],
-      systemInstruction: 'あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。'
+      systemInstruction:
+        "あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。",
     });
   }
 
   async correctText(
     text: string,
     mode: CorrectionMode,
-    context?: string
+    context?: string,
   ): Promise<CorrectionResult> {
     this.validateInput(text);
 
@@ -81,13 +91,15 @@ export class GeminiProvider extends AIProvider {
     const prompt = this.generatePrompt(text, mode, context);
 
     try {
-      const response = await this.retryWithBackoff(() => this.callGeminiAPI(prompt));
+      const response = await this.retryWithBackoff(() =>
+        this.callGeminiAPI(prompt),
+      );
       const correctionData = this.parseResponse(response, text);
-      
+
       return {
         ...correctionData,
         processingTime: Date.now() - startTime,
-        model: this.metadata.displayName
+        model: this.metadata.displayName,
       };
     } catch (error) {
       throw this.handleApiError(error);
@@ -98,11 +110,12 @@ export class GeminiProvider extends AIProvider {
     const result = await this.model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
+
     // Update usage statistics
     if (response.usageMetadata) {
-      const totalTokens = (response.usageMetadata.promptTokenCount || 0) + 
-                         (response.usageMetadata.candidatesTokenCount || 0);
+      const totalTokens =
+        (response.usageMetadata.promptTokenCount || 0) +
+        (response.usageMetadata.candidatesTokenCount || 0);
       this.usage.tokensUsed += totalTokens;
       this.usage.requestCount += 1;
       this.usage.cost += totalTokens * this.metadata.costPerToken;
@@ -117,62 +130,77 @@ export class GeminiProvider extends AIProvider {
     return text;
   }
 
-  private parseResponse(response: string, originalText: string): Omit<CorrectionResult, 'processingTime' | 'model'> {
+  private parseResponse(
+    response: string,
+    originalText: string,
+  ): Omit<CorrectionResult, "processingTime" | "model"> {
     if (!response) {
-      throw new Error('Empty response from Gemini');
+      throw new Error("Empty response from Gemini");
     }
 
     try {
       // Try to extract JSON from the response - look for a complete JSON object
-      const jsonStartIndex = response.indexOf('{');
-      const jsonEndIndex = response.lastIndexOf('}');
-      
-      if (jsonStartIndex !== -1 && jsonEndIndex !== -1 && jsonEndIndex > jsonStartIndex) {
+      const jsonStartIndex = response.indexOf("{");
+      const jsonEndIndex = response.lastIndexOf("}");
+
+      if (
+        jsonStartIndex !== -1 &&
+        jsonEndIndex !== -1 &&
+        jsonEndIndex > jsonStartIndex
+      ) {
         const jsonString = response.substring(jsonStartIndex, jsonEndIndex + 1);
         const parsed = JSON.parse(jsonString);
-        
+
         // Extract corrected text and changes
-        const correctedText = parsed.correctedText || parsed.text || '';
-        const explanation = parsed.explanation || parsed.summary || '';
-        const changes = this.extractChanges(originalText, correctedText, parsed.changes || []);
+        const correctedText = parsed.correctedText || parsed.text || "";
+        const explanation = parsed.explanation || parsed.summary || "";
+        const changes = this.extractChanges(
+          originalText,
+          correctedText,
+          parsed.changes || [],
+        );
 
         return {
           text: correctedText,
           explanation,
           changes,
-          confidence: this.calculateConfidence(originalText, correctedText, changes)
+          confidence: this.calculateConfidence(
+            originalText,
+            correctedText,
+            changes,
+          ),
         };
       }
-    } catch (error) {
+    } catch {
       // Continue to fallback parsing
     }
 
     // Fallback parsing for non-JSON responses
-    const lines = response.split('\n').filter(line => line.trim());
-    
+    const lines = response.split("\n").filter((line) => line.trim());
+
     // Try to find the corrected text (usually the first substantial paragraph)
     let correctedText = originalText;
-    let explanation = '';
-    
+    let explanation = "";
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (line.includes('修正後') || line.includes('訂正後')) {
+      if (line.includes("修正後") || line.includes("訂正後")) {
         // Found corrected text marker
         correctedText = lines[i + 1] || correctedText;
-        explanation = lines.slice(i + 2).join('\n');
+        explanation = lines.slice(i + 2).join("\n");
         break;
       } else if (i === 0 && line.length > 20) {
         // First line might be the corrected text
         correctedText = line;
-        explanation = lines.slice(1).join('\n');
+        explanation = lines.slice(1).join("\n");
       }
     }
 
     return {
       text: correctedText,
-      explanation: explanation || 'テキストを修正しました。',
+      explanation: explanation || "テキストを修正しました。",
       changes: this.extractChanges(originalText, correctedText, []),
-      confidence: 0.8
+      confidence: 0.8,
     };
   }
 
@@ -189,20 +217,20 @@ export class GeminiProvider extends AIProvider {
         start?: number;
         end?: number;
       };
-    }>
+    }>,
   ): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
 
     // If changes are provided in the response, use them
     if (providedChanges.length > 0) {
-      return providedChanges.map(change => ({
-        original: change.original || '',
-        corrected: change.corrected || '',
-        reason: change.reason || change.explanation || '',
+      return providedChanges.map((change) => ({
+        original: change.original || "",
+        corrected: change.corrected || "",
+        reason: change.reason || change.explanation || "",
         position: {
           start: change.position?.start || 0,
-          end: change.position?.end || 0
-        }
+          end: change.position?.end || 0,
+        },
       }));
     }
 
@@ -212,18 +240,22 @@ export class GeminiProvider extends AIProvider {
     let position = 0;
 
     for (let i = 0; i < Math.max(words.length, correctedWords.length); i++) {
-      const originalWord = words[i] || '';
-      const correctedWord = correctedWords[i] || '';
+      const originalWord = words[i] || "";
+      const correctedWord = correctedWords[i] || "";
 
-      if (originalWord !== correctedWord && originalWord.trim() && correctedWord.trim()) {
+      if (
+        originalWord !== correctedWord &&
+        originalWord.trim() &&
+        correctedWord.trim()
+      ) {
         changes.push({
           original: originalWord,
           corrected: correctedWord,
-          reason: 'Text correction',
+          reason: "Text correction",
           position: {
             start: position,
-            end: position + [...originalWord].length
-          }
+            end: position + [...originalWord].length,
+          },
         });
       }
 
@@ -236,7 +268,7 @@ export class GeminiProvider extends AIProvider {
   private calculateConfidence(
     original: string,
     corrected: string,
-    changes: CorrectionChange[]
+    changes: CorrectionChange[],
   ): number {
     if (original === corrected) {
       return 1.0;
@@ -251,10 +283,10 @@ export class GeminiProvider extends AIProvider {
   async checkAvailability(): Promise<boolean> {
     try {
       // Test the API with a simple prompt
-      const result = await this.model.generateContent('テスト');
+      const result = await this.model.generateContent("テスト");
       const response = await result.response;
       return response.text().length > 0;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -270,9 +302,13 @@ export class GeminiProvider extends AIProvider {
   /**
    * Enhanced prompt generation for Gemini
    */
-  protected generatePrompt(text: string, mode: CorrectionMode, context?: string): string {
+  protected generatePrompt(
+    text: string,
+    mode: CorrectionMode,
+    context?: string,
+  ): string {
     const basePrompt = super.generatePrompt(text, mode, context);
-    
+
     return `${basePrompt}
 
 以下のJSON形式で回答してください:

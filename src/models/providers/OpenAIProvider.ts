@@ -1,12 +1,16 @@
 /**
  * OpenAIProvider - OpenAI GPT-4 implementation for text correction
- * 
+ *
  * Implements the AIProvider interface for OpenAI's GPT models.
  */
 
-import { AIProvider, AIProviderConfig, AIProviderMetadata } from './AIProvider';
-import { CorrectionResult, CorrectionMode, CorrectionChange } from '../../types/interfaces';
-import OpenAI from 'openai';
+import { AIProvider, AIProviderConfig, AIProviderMetadata } from "./AIProvider";
+import {
+  CorrectionResult,
+  CorrectionMode,
+  CorrectionChange,
+} from "../../types/interfaces";
+import OpenAI from "openai";
 
 interface OpenAIUsage {
   tokensUsed: number;
@@ -19,17 +23,17 @@ export class OpenAIProvider extends AIProvider {
   private usage: OpenAIUsage = {
     tokensUsed: 0,
     requestCount: 0,
-    cost: 0
+    cost: 0,
   };
 
   constructor(config: AIProviderConfig) {
     const metadata: AIProviderMetadata = {
-      name: 'openai',
-      displayName: 'OpenAI GPT-3.5 Turbo',
-      version: '4.0',
+      name: "openai",
+      displayName: "OpenAI GPT-3.5 Turbo",
+      version: "4.0",
       maxInputLength: 8000,
-      supportedModes: ['business', 'academic', 'casual', 'presentation'],
-      costPerToken: 0.0000005 // GPT-3.5-turbo pricing per token
+      supportedModes: ["business", "academic", "casual", "presentation"],
+      costPerToken: 0.0000005, // GPT-3.5-turbo pricing per token
     };
 
     super(config, metadata);
@@ -39,14 +43,14 @@ export class OpenAIProvider extends AIProvider {
       apiKey: this.config.apiKey,
       baseURL: this.config.baseUrl,
       timeout: this.config.timeout,
-      maxRetries: 0 // We handle retries ourselves
+      maxRetries: 0, // We handle retries ourselves
     });
   }
 
   async correctText(
     text: string,
     mode: CorrectionMode,
-    context?: string
+    context?: string,
   ): Promise<CorrectionResult> {
     this.validateInput(text);
 
@@ -54,13 +58,15 @@ export class OpenAIProvider extends AIProvider {
     const prompt = this.generatePrompt(text, mode, context);
 
     try {
-      const response = await this.retryWithBackoff(() => this.callOpenAIAPI(prompt));
+      const response = await this.retryWithBackoff(() =>
+        this.callOpenAIAPI(prompt),
+      );
       const correctionData = this.parseResponse(response, text);
-      
+
       return {
         ...correctionData,
         processingTime: Date.now() - startTime,
-        model: this.metadata.displayName
+        model: this.metadata.displayName,
       };
     } catch (error) {
       throw this.handleApiError(error);
@@ -69,64 +75,77 @@ export class OpenAIProvider extends AIProvider {
 
   private async callOpenAIAPI(prompt: string): Promise<any> {
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: "gpt-3.5-turbo",
       messages: [
         {
-          role: 'system',
-          content: 'あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。'
+          role: "system",
+          content:
+            "あなたは日本語の文章校正の専門家です。文法、スタイル、表現を改善し、修正内容を説明してください。",
         },
         {
-          role: 'user',
-          content: prompt
-        }
+          role: "user",
+          content: prompt,
+        },
       ],
       temperature: this.config.temperature,
       max_tokens: this.config.maxTokens,
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
     });
 
     // Update usage statistics
     if (response.usage) {
       this.usage.tokensUsed += response.usage.total_tokens;
       this.usage.requestCount += 1;
-      this.usage.cost += response.usage.total_tokens * this.metadata.costPerToken;
+      this.usage.cost +=
+        response.usage.total_tokens * this.metadata.costPerToken;
     }
 
     return response;
   }
 
-  private parseResponse(response: any, originalText: string): Omit<CorrectionResult, 'processingTime' | 'model'> {
+  private parseResponse(
+    response: any,
+    originalText: string,
+  ): Omit<CorrectionResult, "processingTime" | "model"> {
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content) {
-      throw new Error('Empty response from OpenAI');
+      throw new Error("Empty response from OpenAI");
     }
 
     try {
       // Parse the JSON response
       const parsed = JSON.parse(content);
-      
+
       // Extract corrected text and changes
-      const correctedText = parsed.correctedText || parsed.text || '';
-      const explanation = parsed.explanation || parsed.summary || '';
-      const changes = this.extractChanges(originalText, correctedText, parsed.changes || []);
+      const correctedText = parsed.correctedText || parsed.text || "";
+      const explanation = parsed.explanation || parsed.summary || "";
+      const changes = this.extractChanges(
+        originalText,
+        correctedText,
+        parsed.changes || [],
+      );
 
       return {
         text: correctedText,
         explanation,
         changes,
-        confidence: this.calculateConfidence(originalText, correctedText, changes)
+        confidence: this.calculateConfidence(
+          originalText,
+          correctedText,
+          changes,
+        ),
       };
-    } catch (error) {
+    } catch {
       // Fallback for non-JSON responses
-      const lines = content.split('\n');
+      const lines = content.split("\n");
       const correctedText = lines[0] || originalText;
-      
+
       return {
         text: correctedText,
-        explanation: lines.slice(1).join('\n'),
+        explanation: lines.slice(1).join("\n"),
         changes: this.extractChanges(originalText, correctedText, []),
-        confidence: 0.7
+        confidence: 0.7,
       };
     }
   }
@@ -134,20 +153,20 @@ export class OpenAIProvider extends AIProvider {
   private extractChanges(
     original: string,
     corrected: string,
-    providedChanges: any[]
+    providedChanges: any[],
   ): CorrectionChange[] {
     const changes: CorrectionChange[] = [];
 
     // If changes are provided in the response, use them
     if (providedChanges.length > 0) {
-      return providedChanges.map(change => ({
-        original: change.original || '',
-        corrected: change.corrected || '',
-        reason: change.reason || change.explanation || '',
+      return providedChanges.map((change) => ({
+        original: change.original || "",
+        corrected: change.corrected || "",
+        reason: change.reason || change.explanation || "",
         position: {
           start: change.position?.start || 0,
-          end: change.position?.end || 0
-        }
+          end: change.position?.end || 0,
+        },
       }));
     }
 
@@ -157,18 +176,22 @@ export class OpenAIProvider extends AIProvider {
     let position = 0;
 
     for (let i = 0; i < Math.max(words.length, correctedWords.length); i++) {
-      const originalWord = words[i] || '';
-      const correctedWord = correctedWords[i] || '';
+      const originalWord = words[i] || "";
+      const correctedWord = correctedWords[i] || "";
 
-      if (originalWord !== correctedWord && originalWord.trim() && correctedWord.trim()) {
+      if (
+        originalWord !== correctedWord &&
+        originalWord.trim() &&
+        correctedWord.trim()
+      ) {
         changes.push({
           original: originalWord,
           corrected: correctedWord,
-          reason: 'Text correction',
+          reason: "Text correction",
           position: {
             start: position,
-            end: position + originalWord.length
-          }
+            end: position + originalWord.length,
+          },
         });
       }
 
@@ -181,7 +204,7 @@ export class OpenAIProvider extends AIProvider {
   private calculateConfidence(
     original: string,
     corrected: string,
-    changes: CorrectionChange[]
+    changes: CorrectionChange[],
   ): number {
     if (original === corrected) {
       return 1.0;
@@ -197,7 +220,7 @@ export class OpenAIProvider extends AIProvider {
     try {
       const models = await this.openai.models.list();
       return models.data.length > 0;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -213,9 +236,13 @@ export class OpenAIProvider extends AIProvider {
   /**
    * Enhanced prompt generation for OpenAI
    */
-  protected generatePrompt(text: string, mode: CorrectionMode, context?: string): string {
+  protected generatePrompt(
+    text: string,
+    mode: CorrectionMode,
+    context?: string,
+  ): string {
     const basePrompt = super.generatePrompt(text, mode, context);
-    
+
     return `${basePrompt}
 
 以下のJSON形式で回答してください:

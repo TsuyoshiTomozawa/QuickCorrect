@@ -1,13 +1,13 @@
 /**
  * HistoryManager - Manages correction history storage and retrieval
- * 
+ *
  * Handles persistence, search, and management of correction history entries.
  */
 
-import { CorrectionHistory, CorrectionMode } from '../../types/interfaces';
-import Database from 'better-sqlite3';
-import * as path from 'path';
-import * as fs from 'fs';
+import { CorrectionHistory, CorrectionMode } from "../../types/interfaces";
+import Database from "better-sqlite3";
+import * as path from "path";
+import * as fs from "fs";
 
 export interface HistorySearchOptions {
   query?: string;
@@ -33,7 +33,7 @@ export class HistoryManager {
   private initialized: boolean = false;
 
   constructor(userDataPath: string) {
-    this.dbPath = path.join(userDataPath, 'correction_history.db');
+    this.dbPath = path.join(userDataPath, "correction_history.db");
     this.ensureDirectoryExists(userDataPath);
   }
 
@@ -46,13 +46,9 @@ export class HistoryManager {
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    try {
-      this.db = new Database(this.dbPath);
-      await this.createTables();
-      this.initialized = true;
-    } catch (error) {
-      throw error;
-    }
+    this.db = new Database(this.dbPath);
+    await this.createTables();
+    this.initialized = true;
   }
 
   private async createTables(): Promise<void> {
@@ -76,7 +72,9 @@ export class HistoryManager {
     `);
   }
 
-  async addEntry(entry: Omit<CorrectionHistory, 'id' | 'timestamp'>): Promise<string> {
+  async addEntry(
+    entry: Omit<CorrectionHistory, "id" | "timestamp">,
+  ): Promise<string> {
     await this.ensureInitialized();
 
     const id = this.generateId();
@@ -91,7 +89,7 @@ export class HistoryManager {
     const metadata = JSON.stringify({
       textLength: entry.originalText.length,
       correctionLength: entry.correctedText.length,
-      addedAt: timestamp.toISOString()
+      addedAt: timestamp.toISOString(),
     });
 
     const stmt = this.db.prepare(sql);
@@ -103,7 +101,7 @@ export class HistoryManager {
       timestamp.toISOString(),
       entry.model,
       entry.favorite ? 1 : 0,
-      metadata
+      metadata,
     );
 
     return id;
@@ -119,7 +117,10 @@ export class HistoryManager {
     return row ? this.rowToHistory(row) : null;
   }
 
-  async getHistory(limit: number = 100, offset: number = 0): Promise<CorrectionHistory[]> {
+  async getHistory(
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<CorrectionHistory[]> {
     await this.ensureInitialized();
 
     const sql = `
@@ -133,45 +134,47 @@ export class HistoryManager {
     return rows.map((row: any) => this.rowToHistory(row));
   }
 
-  async searchHistory(options: HistorySearchOptions): Promise<CorrectionHistory[]> {
+  async searchHistory(
+    options: HistorySearchOptions,
+  ): Promise<CorrectionHistory[]> {
     await this.ensureInitialized();
 
-    let sql = 'SELECT * FROM correction_history WHERE 1=1';
+    let sql = "SELECT * FROM correction_history WHERE 1=1";
     const params: any[] = [];
 
     if (options.query) {
-      sql += ' AND (original_text LIKE ? OR corrected_text LIKE ?)';
+      sql += " AND (original_text LIKE ? OR corrected_text LIKE ?)";
       const searchQuery = `%${options.query}%`;
       params.push(searchQuery, searchQuery);
     }
 
     if (options.mode) {
-      sql += ' AND mode = ?';
+      sql += " AND mode = ?";
       params.push(options.mode);
     }
 
     if (options.startDate) {
-      sql += ' AND timestamp >= ?';
+      sql += " AND timestamp >= ?";
       params.push(options.startDate.toISOString());
     }
 
     if (options.endDate) {
-      sql += ' AND timestamp <= ?';
+      sql += " AND timestamp <= ?";
       params.push(options.endDate.toISOString());
     }
 
     if (options.onlyFavorites) {
-      sql += ' AND favorite = 1';
+      sql += " AND favorite = 1";
     }
 
-    sql += ' ORDER BY timestamp DESC';
+    sql += " ORDER BY timestamp DESC";
 
     if (options.limit) {
-      sql += ' LIMIT ?';
+      sql += " LIMIT ?";
       params.push(options.limit);
-      
+
       if (options.offset) {
-        sql += ' OFFSET ?';
+        sql += " OFFSET ?";
         params.push(options.offset);
       }
     }
@@ -184,7 +187,7 @@ export class HistoryManager {
   async updateFavorite(id: string, favorite: boolean): Promise<void> {
     await this.ensureInitialized();
 
-    const sql = 'UPDATE correction_history SET favorite = ? WHERE id = ?';
+    const sql = "UPDATE correction_history SET favorite = ? WHERE id = ?";
     const stmt = this.db.prepare(sql);
     stmt.run(favorite ? 1 : 0, id);
   }
@@ -192,25 +195,27 @@ export class HistoryManager {
   async deleteEntry(id: string): Promise<boolean> {
     await this.ensureInitialized();
 
-    const sql = 'DELETE FROM correction_history WHERE id = ?';
+    const sql = "DELETE FROM correction_history WHERE id = ?";
     const stmt = this.db.prepare(sql);
     const result = stmt.run(id);
-    
+
     return result.changes > 0;
   }
 
   async clearHistory(): Promise<void> {
     await this.ensureInitialized();
 
-    this.db.exec('DELETE FROM correction_history');
+    this.db.exec("DELETE FROM correction_history");
   }
 
   async getStats(): Promise<HistoryStats> {
     await this.ensureInitialized();
 
-    const totalCountSQL = 'SELECT COUNT(*) as count FROM correction_history';
-    const byModeSQL = 'SELECT mode, COUNT(*) as count FROM correction_history GROUP BY mode';
-    const avgLengthSQL = 'SELECT AVG(LENGTH(original_text)) as avg_length FROM correction_history';
+    const totalCountSQL = "SELECT COUNT(*) as count FROM correction_history";
+    const byModeSQL =
+      "SELECT mode, COUNT(*) as count FROM correction_history GROUP BY mode";
+    const avgLengthSQL =
+      "SELECT AVG(LENGTH(original_text)) as avg_length FROM correction_history";
     const mostActiveDaySQL = `
       SELECT DATE(timestamp) as day, COUNT(*) as count 
       FROM correction_history 
@@ -218,7 +223,8 @@ export class HistoryManager {
       ORDER BY count DESC 
       LIMIT 1
     `;
-    const favoriteCountSQL = 'SELECT COUNT(*) as count FROM correction_history WHERE favorite = 1';
+    const favoriteCountSQL =
+      "SELECT COUNT(*) as count FROM correction_history WHERE favorite = 1";
 
     const totalCount = this.db.prepare(totalCountSQL).get();
     const byMode = this.db.prepare(byModeSQL).all();
@@ -230,7 +236,7 @@ export class HistoryManager {
       business: 0,
       academic: 0,
       casual: 0,
-      presentation: 0
+      presentation: 0,
     };
 
     byMode.forEach((row: any) => {
@@ -241,44 +247,55 @@ export class HistoryManager {
       totalCount: (totalCount as any)?.count || 0,
       byMode: modeStats,
       averageTextLength: Math.round((avgLength as any)?.avg_length || 0),
-      mostActiveDay: (mostActiveDay as any)?.day || 'N/A',
-      favoriteCount: (favoriteCount as any)?.count || 0
+      mostActiveDay: (mostActiveDay as any)?.day || "N/A",
+      favoriteCount: (favoriteCount as any)?.count || 0,
     };
   }
 
-  async exportHistory(outputPath: string, format: 'json' | 'csv' = 'json'): Promise<void> {
+  async exportHistory(
+    outputPath: string,
+    format: "json" | "csv" = "json",
+  ): Promise<void> {
     await this.ensureInitialized();
 
     const history = await this.getHistory(10000); // Export up to 10k entries
 
-    if (format === 'json') {
+    if (format === "json") {
       const jsonData = JSON.stringify(history, null, 2);
-      fs.writeFileSync(outputPath, jsonData, 'utf8');
+      fs.writeFileSync(outputPath, jsonData, "utf8");
     } else {
-      const csvHeaders = ['ID', 'Original Text', 'Corrected Text', 'Mode', 'Timestamp', 'Model', 'Favorite'];
-      const csvRows = history.map(h => [
+      const csvHeaders = [
+        "ID",
+        "Original Text",
+        "Corrected Text",
+        "Mode",
+        "Timestamp",
+        "Model",
+        "Favorite",
+      ];
+      const csvRows = history.map((h) => [
         h.id,
         `"${h.originalText.replace(/"/g, '""')}"`,
         `"${h.correctedText.replace(/"/g, '""')}"`,
         h.mode,
         h.timestamp.toISOString(),
         h.model,
-        h.favorite ? 'Yes' : 'No'
+        h.favorite ? "Yes" : "No",
       ]);
 
       const csvContent = [
-        csvHeaders.join(','),
-        ...csvRows.map(row => row.join(','))
-      ].join('\n');
+        csvHeaders.join(","),
+        ...csvRows.map((row) => row.join(",")),
+      ].join("\n");
 
-      fs.writeFileSync(outputPath, csvContent, 'utf8');
+      fs.writeFileSync(outputPath, csvContent, "utf8");
     }
   }
 
   async importHistory(inputPath: string): Promise<number> {
     await this.ensureInitialized();
 
-    const fileContent = fs.readFileSync(inputPath, 'utf8');
+    const fileContent = fs.readFileSync(inputPath, "utf8");
     const data = JSON.parse(fileContent) as CorrectionHistory[];
 
     let imported = 0;
@@ -289,7 +306,7 @@ export class HistoryManager {
           correctedText: entry.correctedText,
           mode: entry.mode,
           model: entry.model,
-          favorite: entry.favorite
+          favorite: entry.favorite,
         });
         imported++;
       } catch (error) {
@@ -309,7 +326,7 @@ export class HistoryManager {
       mode: row.mode as CorrectionMode,
       timestamp: new Date(row.timestamp),
       model: row.model,
-      favorite: row.favorite === 1
+      favorite: row.favorite === 1,
     };
   }
 
@@ -322,7 +339,6 @@ export class HistoryManager {
       await this.initialize();
     }
   }
-
 
   async close(): Promise<void> {
     if (this.db) {
