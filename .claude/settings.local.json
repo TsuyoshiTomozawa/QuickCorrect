@@ -23,7 +23,11 @@
       "mcp__github__add_pull_request_review_comment",
       "mcp__github__get_pull_request_reviews",
       "mcp__github__add_pull_request_review_comment",
-      "mcp__github__add_issue_comment"
+      "mcp__github__add_issue_comment",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(rg:*)",
+      "Bash(npx husky init:*)"
     ],
     "deny": []
   },
