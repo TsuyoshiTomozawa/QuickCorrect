@@ -70,6 +70,28 @@ The app supports 4 correction modes, each with specific prompt engineering:
 
 When modifying AI prompts, ensure Japanese language correction remains the primary focus.
 
+## Gemini　CLIに相談・レビューを受けながら作業
+設計、実装計画、実装などgeminiに相談しながら作業
+gemini CLIのコマンド
+
+```
+gemini
+```
+
+## Web Search
+mcp-gemini-grounding を使用
+
+## TDD
+TDDで開発してください。
+
+- 期待する入力値と出力値のペアを具体的に提示
+- テスト駆動開発を明示し、モック実装を避けるよう指導
+- まだ存在しない機能に対してもテストを先行作成
+
+##　ブランチについて
+修正、実装をする場合はmainブランチから作業ブランチを切って作業。
+feature/{作業内容がわかるブランチ名を英語で}
+
 ## 並列実行ルール
 
 **効率的な作業のため、独立したツール操作は並列実行を活用すること：**
