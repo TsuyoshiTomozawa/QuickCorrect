@@ -9,6 +9,8 @@ import {
   CorrectionResult,
   CorrectionMode,
   CorrectionChange,
+  GEMINI_MODELS,
+  GeminiModel,
 } from "../../types/interfaces";
 import {
   GoogleGenerativeAI,
@@ -33,25 +35,23 @@ export class GeminiProvider extends AIProvider {
   };
   private modelName: string;
 
-  constructor(config: AIProviderConfig & { geminiModel?: string }) {
+  constructor(config: AIProviderConfig & { geminiModel?: GeminiModel }) {
     // Determine model and pricing based on configuration
-    const modelName = config.geminiModel || "gemini-1.5-flash";
-    const modelPricing = {
-      "gemini-2.0-flash-exp": { costPerToken: 0.0 }, // Free during experimental phase
-      "gemini-1.5-flash": { costPerToken: 0.00000025 }, // $0.25 per 1M tokens
-      "gemini-1.5-flash-8b": { costPerToken: 0.0000000625 }, // $0.0625 per 1M tokens
+    const modelName = config.geminiModel || GEMINI_MODELS.FLASH_1_5;
+    const modelPricing: Record<GeminiModel, { costPerToken: number }> = {
+      [GEMINI_MODELS.FLASH_2_0_EXP]: { costPerToken: 0.0 }, // Free during experimental phase
+      [GEMINI_MODELS.FLASH_1_5]: { costPerToken: 0.00000025 }, // $0.25 per 1M tokens
+      [GEMINI_MODELS.FLASH_1_5_8B]: { costPerToken: 0.0000000625 }, // $0.0625 per 1M tokens
     };
     const pricing =
-      modelPricing[modelName as keyof typeof modelPricing] ||
-      modelPricing["gemini-1.5-flash"];
+      modelPricing[modelName] || modelPricing[GEMINI_MODELS.FLASH_1_5];
 
-    const displayNames = {
-      "gemini-2.0-flash-exp": "Gemini 2.0 Flash (実験版)",
-      "gemini-1.5-flash": "Gemini 1.5 Flash",
-      "gemini-1.5-flash-8b": "Gemini 1.5 Flash 8B (最安価)",
+    const displayNames: Record<GeminiModel, string> = {
+      [GEMINI_MODELS.FLASH_2_0_EXP]: "Gemini 2.0 Flash (実験版)",
+      [GEMINI_MODELS.FLASH_1_5]: "Gemini 1.5 Flash",
+      [GEMINI_MODELS.FLASH_1_5_8B]: "Gemini 1.5 Flash 8B (最安価)",
     };
-    const displayName =
-      displayNames[modelName as keyof typeof displayNames] || modelName;
+    const displayName = displayNames[modelName] || modelName;
 
     const metadata: AIProviderMetadata = {
       name: "gemini",

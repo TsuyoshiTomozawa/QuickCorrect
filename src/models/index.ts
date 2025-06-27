@@ -32,12 +32,13 @@ export type {
 import { AIProvider, AIProviderConfig } from "./providers/AIProvider";
 import { OpenAIProvider } from "./providers/OpenAIProvider";
 import { GeminiProvider } from "./providers/GeminiProvider";
+import { GeminiModel } from "../types/interfaces";
 
 // Provider Factory for easy instantiation
 export class ProviderFactory {
   static createProvider(
     type: "openai" | "anthropic" | "google",
-    config: AIProviderConfig & { geminiModel?: string },
+    config: AIProviderConfig & { geminiModel?: GeminiModel },
   ): AIProvider {
     switch (type) {
       case "openai":

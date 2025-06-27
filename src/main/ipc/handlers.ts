@@ -12,6 +12,8 @@ import {
   CorrectionMode,
   CorrectionHistory,
   AppSettings,
+  HistorySearchOptions,
+  Permissions,
 } from "../../types/interfaces";
 import { ProviderFactory, HistoryManager } from "../../models";
 import { SettingsManager } from "../settings/SettingsManager";
@@ -82,8 +84,17 @@ function registerCorrectionHandlers(): void {
 
       // Check if AI provider is initialized
       if (!aiProvider) {
+        const settings = await settingsManager.getSettings();
+        const primaryProvider =
+          settings.aiSettings?.primaryProvider || "openai";
+        const providerName =
+          primaryProvider === "openai"
+            ? "OpenAI"
+            : primaryProvider === "google"
+              ? "Google Gemini"
+              : "Anthropic";
         throw new Error(
-          "APIキーが設定されていません。設定画面でOpenAI APIキーを入力してください。",
+          `APIキーが設定されていません。設定画面で${providerName} APIキーを入力してください。`,
         );
       }
 
@@ -242,18 +253,21 @@ function registerHistoryHandlers(): void {
     }
   });
 
-  ipcMain.handle("search-history", async (_event, options: any) => {
-    try {
-      return await historyManager.searchHistory(options);
-    } catch (error: any) {
-      console.error("Search history error:", error);
-      throw {
-        code: "HISTORY_ERROR",
-        message: "Failed to search history",
-        details: error,
-      };
-    }
-  });
+  ipcMain.handle(
+    "search-history",
+    async (_event, options: HistorySearchOptions) => {
+      try {
+        return await historyManager.searchHistory(options);
+      } catch (error: any) {
+        console.error("Search history error:", error);
+        throw {
+          code: "HISTORY_ERROR",
+          message: "Failed to search history",
+          details: error,
+        };
+      }
+    },
+  );
 
   ipcMain.handle("get-history-stats", async () => {
     try {
@@ -349,7 +363,7 @@ function registerSystemHandlers(): void {
 
   ipcMain.handle("check-permissions", async () => {
     try {
-      const permissions: any = {
+      const permissions: Permissions = {
         accessibility: true,
         microphone: false,
         camera: false,

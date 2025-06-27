@@ -30,6 +30,15 @@ export type CorrectionMode =
   | "casual"
   | "presentation";
 
+// Gemini model constants
+export const GEMINI_MODELS = {
+  FLASH_2_0_EXP: "gemini-2.0-flash-exp",
+  FLASH_1_5: "gemini-1.5-flash",
+  FLASH_1_5_8B: "gemini-1.5-flash-8b",
+} as const;
+
+export type GeminiModel = (typeof GEMINI_MODELS)[keyof typeof GEMINI_MODELS];
+
 // History-related types
 export interface CorrectionHistory {
   id: string;
@@ -69,10 +78,7 @@ export interface AppSettings {
     temperature: number;
     maxTokens: number;
     timeout: number;
-    geminiModel?:
-      | "gemini-2.0-flash-exp"
-      | "gemini-1.5-flash"
-      | "gemini-1.5-flash-8b";
+    geminiModel?: GeminiModel;
   };
   privacy: {
     saveHistory: boolean;
@@ -195,7 +201,7 @@ export interface ElectronAPI {
   platform: NodeJS.Platform;
 
   // Statistics
-  getStatistics: () => Promise<any>;
+  getStatistics: () => Promise<Statistics>;
 
   // Debug
   getDebugInfo?: () => Promise<any>;
@@ -231,6 +237,38 @@ export interface BaseComponentProps {
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+}
+
+// History search options
+export interface HistorySearchOptions {
+  query?: string;
+  mode?: CorrectionMode;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+  onlyFavorites?: boolean;
+}
+
+// Statistics interface
+export interface Statistics {
+  totalCorrections: number;
+  correctionsByMode: Record<CorrectionMode, number>;
+  averageProcessingTime: number;
+  totalTokensUsed: number;
+  mostUsedProvider: string;
+  dailyUsage: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
+// Permissions interface
+export interface Permissions {
+  accessibility: boolean;
+  microphone: boolean;
+  camera: boolean;
+  notifications: boolean;
 }
 
 // Global declarations for window object

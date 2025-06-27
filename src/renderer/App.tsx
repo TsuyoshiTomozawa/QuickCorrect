@@ -17,7 +17,11 @@ import {
   useHistory,
   useClipboard,
 } from "./hooks";
-import { CorrectionMode } from "../types/interfaces";
+import {
+  CorrectionMode,
+  GEMINI_MODELS,
+  GeminiModel,
+} from "../types/interfaces";
 
 // Styled components
 const AppContainer = styled.div`
@@ -352,16 +356,13 @@ const App: React.FC = () => {
                       <select
                         value={
                           settings?.aiSettings?.geminiModel ||
-                          "gemini-1.5-flash"
+                          GEMINI_MODELS.FLASH_1_5
                         }
                         onChange={(e) => {
                           updateSettings({
                             aiSettings: {
                               ...settings?.aiSettings,
-                              geminiModel: e.target.value as
-                                | "gemini-2.0-flash-exp"
-                                | "gemini-1.5-flash"
-                                | "gemini-1.5-flash-8b",
+                              geminiModel: e.target.value as GeminiModel,
                             },
                           });
                         }}
@@ -372,13 +373,13 @@ const App: React.FC = () => {
                           border: "1px solid #ddd",
                         }}
                       >
-                        <option value="gemini-2.0-flash-exp">
+                        <option value={GEMINI_MODELS.FLASH_2_0_EXP}>
                           Gemini 2.0 Flash (実験版)
                         </option>
-                        <option value="gemini-1.5-flash">
+                        <option value={GEMINI_MODELS.FLASH_1_5}>
                           Gemini 1.5 Flash
                         </option>
-                        <option value="gemini-1.5-flash-8b">
+                        <option value={GEMINI_MODELS.FLASH_1_5_8B}>
                           Gemini 1.5 Flash 8B (最安価)
                         </option>
                       </select>
