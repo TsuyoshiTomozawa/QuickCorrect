@@ -37,7 +37,7 @@ import { GeminiProvider } from "./providers/GeminiProvider";
 export class ProviderFactory {
   static createProvider(
     type: "openai" | "anthropic" | "google",
-    config: AIProviderConfig,
+    config: AIProviderConfig & { geminiModel?: string },
   ): AIProvider {
     switch (type) {
       case "openai":

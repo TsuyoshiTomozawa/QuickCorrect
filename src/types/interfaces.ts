@@ -1,6 +1,6 @@
 /**
  * QuickCorrect - Type Definitions
- * 
+ *
  * This file contains all TypeScript interfaces and types used throughout the application.
  */
 
@@ -24,7 +24,11 @@ export interface CorrectionChange {
   };
 }
 
-export type CorrectionMode = 'business' | 'academic' | 'casual' | 'presentation';
+export type CorrectionMode =
+  | "business"
+  | "academic"
+  | "casual"
+  | "presentation";
 
 // History-related types
 export interface CorrectionHistory {
@@ -61,10 +65,14 @@ export interface AppSettings {
     };
   };
   aiSettings: {
-    primaryProvider: 'openai' | 'anthropic' | 'google';
+    primaryProvider: "openai" | "anthropic" | "google";
     temperature: number;
     maxTokens: number;
     timeout: number;
+    geminiModel?:
+      | "gemini-2.0-flash-exp"
+      | "gemini-1.5-flash"
+      | "gemini-1.5-flash-8b";
   };
   privacy: {
     saveHistory: boolean;
@@ -139,61 +147,66 @@ export interface AppError {
   timestamp: Date;
 }
 
-export type ErrorCode = 
-  | 'API_ERROR'
-  | 'NETWORK_ERROR'
-  | 'VALIDATION_ERROR'
-  | 'PERMISSION_ERROR'
-  | 'HOTKEY_ERROR'
-  | 'STORAGE_ERROR'
-  | 'UNKNOWN_ERROR';
+export type ErrorCode =
+  | "API_ERROR"
+  | "NETWORK_ERROR"
+  | "VALIDATION_ERROR"
+  | "PERMISSION_ERROR"
+  | "HOTKEY_ERROR"
+  | "STORAGE_ERROR"
+  | "UNKNOWN_ERROR";
 
 // IPC types for Electron communication
 export interface ElectronAPI {
   // Text correction
-  correctText: (text: string, mode: CorrectionMode) => Promise<CorrectionResult>;
-  
+  correctText: (
+    text: string,
+    mode: CorrectionMode,
+  ) => Promise<CorrectionResult>;
+
   // Settings
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
-  
+
   // History
   getHistory: (limit?: number) => Promise<CorrectionHistory[]>;
-  saveToHistory: (history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => Promise<boolean>;
+  saveToHistory: (
+    history: Omit<CorrectionHistory, "id" | "timestamp">,
+  ) => Promise<boolean>;
   deleteHistory: (id: string) => Promise<boolean>;
   clearHistory: () => Promise<boolean>;
-  
+
   // Window controls
   hideWindow: () => void;
   minimizeWindow: () => void;
   closeWindow: () => void;
-  
+
   // Events
   onTextSelected: (callback: (text: string) => void) => void;
   removeAllListeners: (channel: string) => void;
-  
+
   // Clipboard
   copyToClipboard: (text: string) => Promise<boolean>;
   getClipboardText: () => Promise<string>;
-  
+
   // System
   getSystemInfo: () => Promise<SystemInfo>;
   checkPermissions: () => Promise<PermissionStatus>;
   platform: NodeJS.Platform;
-  
+
   // Statistics
   getStatistics: () => Promise<any>;
-  
+
   // Debug
   getDebugInfo?: () => Promise<any>;
-  
+
   // Event listeners
   on?: (channel: string, callback: Function) => void;
   once?: (channel: string, callback: Function) => void;
 }
 
 export interface SystemInfo {
-  platform: 'win32' | 'darwin' | 'linux';
+  platform: "win32" | "darwin" | "linux";
   version: string;
   arch: string;
   memory: {

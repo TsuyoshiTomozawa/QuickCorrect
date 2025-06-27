@@ -307,36 +307,83 @@ const App: React.FC = () => {
 
                 {/* Gemini API Key */}
                 {settings?.aiSettings?.primaryProvider === "google" && (
-                  <div style={{ marginBottom: "10px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "3px",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Google Gemini
-                    </label>
-                    <input
-                      type="password"
-                      value={settings?.apiKeys?.google || ""}
-                      onChange={(e) => {
-                        updateSettings({
-                          apiKeys: {
-                            ...settings?.apiKeys,
-                            google: e.target.value,
-                          },
-                        });
-                      }}
-                      placeholder="AIza..."
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                      }}
-                    />
-                  </div>
+                  <>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "3px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Google Gemini
+                      </label>
+                      <input
+                        type="password"
+                        value={settings?.apiKeys?.google || ""}
+                        onChange={(e) => {
+                          updateSettings({
+                            apiKeys: {
+                              ...settings?.apiKeys,
+                              google: e.target.value,
+                            },
+                          });
+                        }}
+                        placeholder="AIza..."
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                    </div>
+                    {/* Gemini Model Selection */}
+                    <div style={{ marginBottom: "10px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "3px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Geminiモデル
+                      </label>
+                      <select
+                        value={
+                          settings?.aiSettings?.geminiModel ||
+                          "gemini-1.5-flash"
+                        }
+                        onChange={(e) => {
+                          updateSettings({
+                            aiSettings: {
+                              ...settings?.aiSettings,
+                              geminiModel: e.target.value as
+                                | "gemini-2.0-flash-exp"
+                                | "gemini-1.5-flash"
+                                | "gemini-1.5-flash-8b",
+                            },
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        <option value="gemini-2.0-flash-exp">
+                          Gemini 2.0 Flash (実験版)
+                        </option>
+                        <option value="gemini-1.5-flash">
+                          Gemini 1.5 Flash
+                        </option>
+                        <option value="gemini-1.5-flash-8b">
+                          Gemini 1.5 Flash 8B (最安価)
+                        </option>
+                      </select>
+                    </div>
+                  </>
                 )}
               </div>
 
