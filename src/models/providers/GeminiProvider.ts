@@ -31,25 +31,46 @@ export class GeminiProvider extends AIProvider {
     requestCount: 0,
     cost: 0,
   };
+  private modelName: string;
 
-  constructor(config: AIProviderConfig) {
+  constructor(config: AIProviderConfig & { geminiModel?: string }) {
+    // Determine model and pricing based on configuration
+    const modelName = config.geminiModel || "gemini-1.5-flash";
+    const modelPricing = {
+      "gemini-2.0-flash-exp": { costPerToken: 0.0 }, // Free during experimental phase
+      "gemini-1.5-flash": { costPerToken: 0.00000025 }, // $0.25 per 1M tokens
+      "gemini-1.5-flash-8b": { costPerToken: 0.0000000625 }, // $0.0625 per 1M tokens
+    };
+    const pricing =
+      modelPricing[modelName as keyof typeof modelPricing] ||
+      modelPricing["gemini-1.5-flash"];
+
+    const displayNames = {
+      "gemini-2.0-flash-exp": "Gemini 2.0 Flash (実験版)",
+      "gemini-1.5-flash": "Gemini 1.5 Flash",
+      "gemini-1.5-flash-8b": "Gemini 1.5 Flash 8B (最安価)",
+    };
+    const displayName =
+      displayNames[modelName as keyof typeof displayNames] || modelName;
+
     const metadata: AIProviderMetadata = {
       name: "gemini",
-      displayName: "Google Gemini 2.5 Flash Lite",
+      displayName: `Google ${displayName}`,
       version: "2.0",
       maxInputLength: 30000, // Support up to 30k characters
       supportedModes: ["business", "academic", "casual", "presentation"],
-      costPerToken: 0.00000025, // Gemini Flash pricing per token
+      costPerToken: pricing.costPerToken,
     };
 
     super(config, metadata);
+    this.modelName = modelName;
     this.validateConfig();
 
     this.genAI = new GoogleGenerativeAI(this.config.apiKey);
 
     // Initialize Gemini model with safety settings
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite-preview-06-17",
+      model: this.modelName,
       generationConfig: {
         temperature: this.config.temperature || 0.7,
         maxOutputTokens: this.config.maxTokens || 2048,
