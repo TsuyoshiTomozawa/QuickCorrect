@@ -22,6 +22,7 @@ import {
   GEMINI_MODELS,
   GeminiModel,
 } from "../types/interfaces";
+import { ThemeProvider, useTheme, ThemeMode, getFocusShadow } from "./contexts/ThemeContext";
 
 // Styled components
 const AppContainer = styled.div`
@@ -29,9 +30,11 @@ const AppContainer = styled.div`
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
 `;
 
 const MainContent = styled.div`
@@ -45,7 +48,7 @@ const TextPanelContainer = styled.div`
   flex: 1;
   display: flex;
   gap: 1px;
-  background: #e1e5e9;
+  background: ${({ theme }) => theme.colors.border};
 `;
 
 const SidePanel = styled(motion.div)`
@@ -54,9 +57,193 @@ const SidePanel = styled(motion.div)`
   right: 0;
   width: 300px;
   height: 100%;
-  background: white;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  background: ${({ theme }) => theme.colors.surface};
+  box-shadow: -2px 0 10px ${({ theme }) => theme.colors.shadow};
   z-index: 1000;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const Header = styled.div`
+  height: 60px;
+  background: ${({ theme }) => theme.colors.surface};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const Title = styled.h1`
+  margin: 0;
+  font-size: 20px;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const HeaderButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.surfaceHover};
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
+  }
+
+  &:focus:not(:focus-visible) {
+    box-shadow: none;
+  }
+`;
+
+const StatusBar = styled.div`
+  height: 30px;
+  background: ${({ theme }) => theme.colors.surface};
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSubtle};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const SettingsSection = styled.div`
+  margin-top: 20px;
+`;
+
+const SettingsLabel = styled.label`
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const SettingsSelect = styled.select`
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+`;
+
+const SettingsInput = styled.input`
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.accent};
+  }
+`;
+
+const CloseButton = styled.button`
+  margin-top: 20px;
+  padding: 8px 16px;
+  background-color: ${({ theme }) => theme.colors.textSubtle};
+  color: ${({ theme }) => theme.colors.textInverse};
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.text};
+  }
+`;
+
+const PanelContent = styled.div`
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+`;
+
+const PanelTitle = styled.h3`
+  margin: 0 0 20px 0;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const InputGroup = styled.div`
+  margin-bottom: 10px;
+`;
+
+const SubLabel = styled.label`
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const CheckboxLabel = styled.label`
+  display: block;
+  margin-bottom: 10px;
+  color: ${({ theme }) => theme.colors.text};
+  cursor: pointer;
+  
+  input {
+    margin-right: 8px;
+  }
+`;
+
+const NumberInput = styled.input`
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.accent};
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.accent}33;
+  }
+`;
+
+const HistoryList = styled.div`
+  margin-top: 20px;
+  max-height: 400px;
+  overflow: auto;
+`;
+
+const HistoryItem = styled.div`
+  padding: 10px;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  font-size: 12px;
+`;
+
+const HistoryMode = styled.div`
+  font-weight: bold;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const HistoryOriginal = styled.div`
+  color: ${({ theme }) => theme.colors.textSubtle};
+  margin-top: 4px;
+`;
+
+const HistoryCorrected = styled.div`
+  color: ${({ theme }) => theme.colors.success};
+  margin-top: 4px;
+`;
+
+const EmptyMessage = styled.p`
+  color: ${({ theme }) => theme.colors.textSubtle};
 `;
 
 const App: React.FC = () => {
@@ -144,34 +331,21 @@ const App: React.FC = () => {
 
   return (
     <AppContainer>
-      {/* Placeholder Header */}
-      <div
-        style={{
-          height: "60px",
-          background: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          borderBottom: "1px solid #e1e5e9",
-        }}
-      >
-        <h1 style={{ margin: 0, fontSize: "20px", color: "#333" }}>
-          QuickCorrect
-        </h1>
+      <Header>
+        <Title>QuickCorrect</Title>
         <div>
-          <button onClick={handleSettingsToggle} style={{ marginRight: "8px" }}>
+          <HeaderButton onClick={handleSettingsToggle}>
             ⚙️
-          </button>
-          <button onClick={handleHistoryToggle} style={{ marginRight: "8px" }}>
+          </HeaderButton>
+          <HeaderButton onClick={handleHistoryToggle}>
             📋
-          </button>
-          <button onClick={hideWindow} style={{ marginRight: "8px" }}>
+          </HeaderButton>
+          <HeaderButton onClick={hideWindow}>
             ➖
-          </button>
-          <button onClick={closeWindow}>✕</button>
+          </HeaderButton>
+          <HeaderButton onClick={closeWindow}>✕</HeaderButton>
         </div>
-      </div>
+      </Header>
 
       <MainContent>
         <TextPanelContainer>
@@ -192,22 +366,10 @@ const App: React.FC = () => {
           />
         </TextPanelContainer>
 
-        {/* Status Bar */}
-        <div
-          style={{
-            height: "30px",
-            background: "#f8f9fa",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 16px",
-            fontSize: "12px",
-            color: "#666",
-            borderTop: "1px solid #e1e5e9",
-          }}
-        >
+        <StatusBar>
           文字数: {inputText.length} | モード: {correctionMode} | 状態:{" "}
           {isLoading ? "処理中" : "スタンバイ"}
-        </div>
+        </StatusBar>
       </MainContent>
 
       {/* Side Panels - Placeholder */}
@@ -219,22 +381,37 @@ const App: React.FC = () => {
             exit={{ x: 300 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <div style={{ padding: "20px", height: "100%", overflowY: "auto" }}>
-              <h3>設定</h3>
-
-              {/* API Provider Selection */}
-              <div style={{ marginTop: "20px" }}>
-                <label
-                  htmlFor="aiProviderSelect"
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    fontWeight: "bold",
+            <PanelContent>
+              <PanelTitle>設定</PanelTitle>
+              
+              {/* Theme Selection */}
+              <SettingsSection>
+                <SettingsLabel htmlFor="themeSelect">
+                  テーマ
+                </SettingsLabel>
+                <SettingsSelect
+                  id="themeSelect"
+                  value={settings?.appearance?.theme || "system"}
+                  onChange={(e) => {
+                    updateSettings({
+                      appearance: {
+                        theme: e.target.value as "light" | "dark" | "system",
+                      },
+                    });
                   }}
                 >
+                  <option value="system">システム設定に従う</option>
+                  <option value="light">ライトモード</option>
+                  <option value="dark">ダークモード</option>
+                </SettingsSelect>
+              </SettingsSection>
+
+              {/* API Provider Selection */}
+              <SettingsSection>
+                <SettingsLabel htmlFor="aiProviderSelect">
                   AIプロバイダー
-                </label>
-                <select
+                </SettingsLabel>
+                <SettingsSelect
                   id="aiProviderSelect"
                   value={settings?.aiSettings?.primaryProvider || "openai"}
                   onChange={(e) => {
@@ -250,44 +427,26 @@ const App: React.FC = () => {
                       },
                     });
                   }}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    borderRadius: "4px",
-                    border: "1px solid #ddd",
-                  }}
                 >
                   <option value="openai">OpenAI GPT-3.5</option>
                   <option value="google">Google Gemini Pro</option>
-                </select>
-              </div>
+                </SettingsSelect>
+              </SettingsSection>
 
               {/* API Keys */}
-              <div style={{ marginTop: "20px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: "5px",
-                    fontWeight: "bold",
-                  }}
-                >
+              <SettingsSection>
+                <SettingsLabel>
                   APIキー
-                </label>
+                </SettingsLabel>
 
                 {/* OpenAI API Key */}
                 {(settings?.aiSettings?.primaryProvider === "openai" ||
                   !settings?.aiSettings?.primaryProvider) && (
-                  <div style={{ marginBottom: "10px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "3px",
-                        fontSize: "14px",
-                      }}
-                    >
+                  <InputGroup>
+                    <SubLabel>
                       OpenAI
-                    </label>
-                    <input
+                    </SubLabel>
+                    <SettingsInput
                       type="password"
                       value={settings?.apiKeys?.openai || ""}
                       onChange={(e) => {
@@ -299,30 +458,18 @@ const App: React.FC = () => {
                         });
                       }}
                       placeholder="sk-..."
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                      }}
                     />
-                  </div>
+                  </InputGroup>
                 )}
 
                 {/* Gemini API Key */}
                 {settings?.aiSettings?.primaryProvider === "google" && (
                   <>
-                    <div style={{ marginBottom: "10px" }}>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "3px",
-                          fontSize: "14px",
-                        }}
-                      >
+                    <InputGroup>
+                      <SubLabel>
                         Google Gemini
-                      </label>
-                      <input
+                      </SubLabel>
+                      <SettingsInput
                         type="password"
                         value={settings?.apiKeys?.google || ""}
                         onChange={(e) => {
@@ -334,26 +481,14 @@ const App: React.FC = () => {
                           });
                         }}
                         placeholder="AIza..."
-                        style={{
-                          width: "100%",
-                          padding: "8px",
-                          borderRadius: "4px",
-                          border: "1px solid #ddd",
-                        }}
                       />
-                    </div>
+                    </InputGroup>
                     {/* Gemini Model Selection */}
-                    <div style={{ marginBottom: "10px" }}>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "3px",
-                          fontSize: "14px",
-                        }}
-                      >
+                    <InputGroup>
+                      <SubLabel>
                         Geminiモデル
-                      </label>
-                      <select
+                      </SubLabel>
+                      <SettingsSelect
                         value={
                           settings?.aiSettings?.geminiModel ||
                           GEMINI_MODELS.FLASH_1_5
@@ -366,12 +501,6 @@ const App: React.FC = () => {
                             },
                           });
                         }}
-                        style={{
-                          width: "100%",
-                          padding: "8px",
-                          borderRadius: "4px",
-                          border: "1px solid #ddd",
-                        }}
                       >
                         <option value={GEMINI_MODELS.FLASH_2_0_EXP}>
                           Gemini 2.0 Flash (実験版)
@@ -382,14 +511,14 @@ const App: React.FC = () => {
                         <option value={GEMINI_MODELS.FLASH_1_5_8B}>
                           Gemini 1.5 Flash 8B (最安価)
                         </option>
-                      </select>
-                    </div>
+                      </SettingsSelect>
+                    </InputGroup>
                   </>
                 )}
-              </div>
+              </SettingsSection>
 
               {/* Hotkey */}
-              <div style={{ marginTop: "20px" }}>
+              <SettingsSection>
                 <HotkeyInput
                   value={settings?.hotkey || "CommandOrControl+T"}
                   onChange={(hotkey) => {
@@ -398,28 +527,28 @@ const App: React.FC = () => {
                   label="ホットキー"
                 />
 
-                <div style={{ marginTop: "20px" }}>
-                  <label style={{ display: "block", marginBottom: "10px" }}>
+                <SettingsSection>
+                  <CheckboxLabel>
                     <input
                       type="checkbox"
                       checked={settings?.autoCorrect || false}
                       onChange={(e) =>
                         updateSettings({ autoCorrect: e.target.checked })
                       }
-                    />{" "}
+                    />
                     自動添削
-                  </label>
-                  <label style={{ display: "block", marginBottom: "10px" }}>
+                  </CheckboxLabel>
+                  <CheckboxLabel>
                     <input
                       type="checkbox"
                       checked={settings?.autoCopy || false}
                       onChange={(e) =>
                         updateSettings({ autoCopy: e.target.checked })
                       }
-                    />{" "}
+                    />
                     自動コピー
-                  </label>
-                  <label style={{ display: "block", marginBottom: "10px" }}>
+                  </CheckboxLabel>
+                  <CheckboxLabel>
                     <input
                       type="checkbox"
                       checked={settings?.privacy.saveHistory || false}
@@ -432,33 +561,21 @@ const App: React.FC = () => {
                           },
                         })
                       }
-                    />{" "}
+                    />
                     履歴を保存
-                  </label>
-                </div>
+                  </CheckboxLabel>
+                </SettingsSection>
 
                 {/* AI Settings */}
-                <div style={{ marginTop: "20px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: "5px",
-                      fontWeight: "bold",
-                    }}
-                  >
+                <SettingsSection>
+                  <SettingsLabel>
                     AI設定
-                  </label>
-                  <div style={{ marginBottom: "10px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "3px",
-                        fontSize: "14px",
-                      }}
-                    >
+                  </SettingsLabel>
+                  <InputGroup>
+                    <SubLabel>
                       Temperature (0-2)
-                    </label>
-                    <input
+                    </SubLabel>
+                    <NumberInput
                       type="number"
                       min="0"
                       max="2"
@@ -475,25 +592,13 @@ const App: React.FC = () => {
                           },
                         });
                       }}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                      }}
                     />
-                  </div>
-                  <div style={{ marginBottom: "10px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "3px",
-                        fontSize: "14px",
-                      }}
-                    >
+                  </InputGroup>
+                  <InputGroup>
+                    <SubLabel>
                       最大トークン数
-                    </label>
-                    <input
+                    </SubLabel>
+                    <NumberInput
                       type="number"
                       min="100"
                       max="4000"
@@ -511,31 +616,14 @@ const App: React.FC = () => {
                           },
                         });
                       }}
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                      }}
                     />
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSettings(false)}
-                style={{
-                  marginTop: "20px",
-                  padding: "8px 16px",
-                  backgroundColor: "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
-              >
+                  </InputGroup>
+                </SettingsSection>
+              </SettingsSection>
+              <CloseButton onClick={() => setShowSettings(false)}>
                 閉じる
-              </button>
-            </div>
+              </CloseButton>
+            </PanelContent>
           </SidePanel>
         )}
 
@@ -546,40 +634,27 @@ const App: React.FC = () => {
             exit={{ x: 300 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <div style={{ padding: "20px" }}>
-              <h3>履歴</h3>
+            <PanelContent>
+              <PanelTitle>履歴</PanelTitle>
               {history.length > 0 ? (
-                <div
-                  style={{
-                    marginTop: "20px",
-                    maxHeight: "400px",
-                    overflow: "auto",
-                  }}
-                >
+                <HistoryList>
                   {history.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        padding: "10px",
-                        borderBottom: "1px solid #eee",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <div style={{ fontWeight: "bold" }}>{item.mode}</div>
-                      <div style={{ color: "#666", marginTop: "4px" }}>
+                    <HistoryItem key={item.id}>
+                      <HistoryMode>{item.mode}</HistoryMode>
+                      <HistoryOriginal>
                         {item.originalText.substring(0, 50)}...
-                      </div>
-                      <div style={{ color: "#28a745", marginTop: "4px" }}>
+                      </HistoryOriginal>
+                      <HistoryCorrected>
                         → {item.correctedText.substring(0, 50)}...
-                      </div>
-                    </div>
+                      </HistoryCorrected>
+                    </HistoryItem>
                   ))}
-                </div>
+                </HistoryList>
               ) : (
-                <p>履歴がありません</p>
+                <EmptyMessage>履歴がありません</EmptyMessage>
               )}
-              <button onClick={() => setShowHistory(false)}>閉じる</button>
-            </div>
+              <CloseButton onClick={() => setShowHistory(false)}>閉じる</CloseButton>
+            </PanelContent>
           </SidePanel>
         )}
       </AnimatePresence>

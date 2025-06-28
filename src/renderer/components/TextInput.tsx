@@ -18,10 +18,10 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
+  background: ${({ theme }) => theme.colors.surface};
   border-radius: 8px;
   margin: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px ${({ theme }) => theme.colors.shadow};
   overflow: hidden;
 `;
 
@@ -30,15 +30,15 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Title = styled.h3`
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const ModeSelector = styled.div`
@@ -48,17 +48,26 @@ const ModeSelector = styled.div`
 
 const ModeButton = styled.button<{ $isActive: boolean }>`
   padding: 6px 12px;
-  border: 1px solid ${props => props.$isActive ? '#007bff' : '#dee2e6'};
-  background: ${props => props.$isActive ? '#007bff' : 'white'};
-  color: ${props => props.$isActive ? 'white' : '#495057'};
+  border: 1px solid ${props => props.$isActive ? props.theme.colors.accent : props.theme.colors.border};
+  background: ${props => props.$isActive ? props.theme.colors.accent : props.theme.colors.surface};
+  color: ${props => props.$isActive ? props.theme.colors.textInverse : props.theme.colors.text};
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: ${props => props.$isActive ? '#0056b3' : '#f8f9fa'};
-    border-color: ${props => props.$isActive ? '#0056b3' : '#adb5bd'};
+    background: ${props => props.$isActive ? props.theme.colors.accentHover : props.theme.colors.surfaceHover};
+    border-color: ${props => props.$isActive ? props.theme.colors.accentHover : props.theme.colors.borderSubtle};
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px ${props => props.theme.colors.accent}33;
+  }
+
+  &:focus:not(:focus-visible) {
+    box-shadow: none;
   }
 `;
 
@@ -73,21 +82,24 @@ const TextArea = styled.textarea`
   flex: 1;
   width: 100%;
   padding: 16px;
-  border: 2px solid #e9ecef;
+  border: 2px solid ${({ theme }) => theme.colors.border};
   border-radius: 6px;
   font-size: 16px;
   line-height: 1.6;
   resize: none;
   transition: border-color 0.2s ease;
   font-family: inherit;
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
 
   &:focus {
     outline: none;
-    border-color: #80bdff;
+    border-color: ${({ theme }) => theme.colors.accent};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
   }
 
   &::placeholder {
-    color: #adb5bd;
+    color: ${({ theme }) => theme.colors.textSubtle};
   }
 `;
 
@@ -96,8 +108,8 @@ const Footer = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  background: ${({ theme }) => theme.colors.surface};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const CharacterCount = styled.div`
@@ -105,7 +117,7 @@ const CharacterCount = styled.div`
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSubtle};
 `;
 
 const CorrectButton = styled(motion.button)<{ $disabled: boolean }>`
@@ -113,8 +125,8 @@ const CorrectButton = styled(motion.button)<{ $disabled: boolean }>`
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: ${props => props.$disabled ? '#6c757d' : '#28a745'};
-  color: white;
+  background: ${props => props.$disabled ? props.theme.colors.textSubtle : props.theme.colors.success};
+  color: ${({ theme }) => theme.colors.textInverse};
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -123,7 +135,8 @@ const CorrectButton = styled(motion.button)<{ $disabled: boolean }>`
   transition: background 0.2s ease;
 
   &:hover {
-    background: ${props => props.$disabled ? '#6c757d' : '#218838'};
+    background: ${props => props.$disabled ? props.theme.colors.textSubtle : props.theme.colors.success};
+    opacity: ${props => props.$disabled ? 1 : 0.9};
   }
 `;
 

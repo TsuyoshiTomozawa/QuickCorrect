@@ -37,7 +37,10 @@
       "mcp__playwright__browser_close",
       "mcp__github__create_issue",
       "mcp__github__search_repositories",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "mcp__Phantom__phantom_github_checkout",
+      "Bash(gemini:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": []
   },

@@ -15,10 +15,10 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
+  background: ${({ theme }) => theme.colors.surface};
   border-radius: 8px;
   margin: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px ${({ theme }) => theme.colors.shadow};
   overflow: hidden;
 `;
 
@@ -27,15 +27,15 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Title = styled.h3`
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const StatusBadge = styled.div<{ $type: 'success' | 'loading' | 'error' | 'idle' }>`
@@ -44,19 +44,20 @@ const StatusBadge = styled.div<{ $type: 'success' | 'loading' | 'error' | 'idle'
   font-size: 12px;
   font-weight: 500;
   background: ${props => {
+    const opacity = props.theme.mode === 'dark' ? '0.2' : '0.1';
     switch (props.$type) {
-      case 'success': return '#d4edda';
-      case 'loading': return '#cce5ff';
-      case 'error': return '#f8d7da';
-      default: return '#e9ecef';
+      case 'success': return `${props.theme.colors.success}${opacity.replace('.', '')}`;
+      case 'loading': return `${props.theme.colors.accent}${opacity.replace('.', '')}`;
+      case 'error': return `${props.theme.colors.error}${opacity.replace('.', '')}`;
+      default: return props.theme.colors.borderSubtle;
     }
   }};
   color: ${props => {
     switch (props.$type) {
-      case 'success': return '#155724';
-      case 'loading': return '#004085';
-      case 'error': return '#721c24';
-      default: return '#6c757d';
+      case 'success': return props.theme.colors.success;
+      case 'loading': return props.theme.colors.accent;
+      case 'error': return props.theme.colors.error;
+      default: return props.theme.colors.textSubtle;
     }
   }};
 `;
@@ -78,7 +79,7 @@ const ResultArea = styled.div`
 const TextDisplay = styled.div`
   font-size: 16px;
   line-height: 1.8;
-  color: #212529;
+  color: ${({ theme }) => theme.colors.text};
   white-space: pre-wrap;
   word-break: break-word;
 `;
@@ -95,8 +96,8 @@ const LoadingContainer = styled(motion.div)`
 const LoadingSpinner = styled(motion.div)`
   width: 40px;
   height: 40px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #007bff;
+  border: 3px solid ${({ theme }) => theme.colors.borderSubtle};
+  border-top: 3px solid ${({ theme }) => theme.colors.accent};
   border-radius: 50%;
 `;
 
@@ -106,14 +107,14 @@ const EmptyState = styled.div`
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSubtle};
   text-align: center;
   padding: 40px;
 `;
 
 const ErrorContainer = styled(motion.div)`
-  background: #f8d7da;
-  color: #721c24;
+  background: ${({ theme }) => `${theme.colors.error}${theme.mode === 'dark' ? '33' : '1A'}`};
+  color: ${({ theme }) => theme.colors.error};
   padding: 16px;
   border-radius: 6px;
   margin: 20px;
@@ -126,10 +127,10 @@ const MetaInfo = styled.div`
   display: flex;
   gap: 20px;
   padding: 12px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  background: ${({ theme }) => theme.colors.surface};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
   font-size: 12px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSubtle};
 `;
 
 const MetaItem = styled.div`
@@ -142,16 +143,16 @@ const ActionBar = styled.div`
   display: flex;
   gap: 8px;
   padding: 16px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  background: ${({ theme }) => theme.colors.surface};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const ActionButton = styled(motion.button)`
   flex: 1;
   padding: 10px 16px;
-  border: 1px solid #dee2e6;
-  background: white;
-  color: #495057;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+  color: ${({ theme }) => theme.colors.text};
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
@@ -162,12 +163,22 @@ const ActionButton = styled(motion.button)`
   transition: all 0.2s ease;
 
   &:hover {
-    background: #f8f9fa;
-    border-color: #adb5bd;
+    background: ${({ theme }) => theme.colors.surfaceHover};
+    border-color: ${({ theme }) => theme.colors.borderSubtle};
   }
 
   &:active {
-    background: #e9ecef;
+    background: ${({ theme }) => theme.colors.borderSubtle};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.accent};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
+  }
+
+  &:focus:not(:focus-visible) {
+    box-shadow: none;
   }
 `;
 
@@ -176,8 +187,8 @@ const CopyConfirmation = styled(motion.div)`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(40, 167, 69, 0.95);
-  color: white;
+  background: ${({ theme }) => theme.colors.success};
+  color: ${({ theme }) => theme.colors.textInverse};
   padding: 16px 32px;
   border-radius: 8px;
   font-size: 16px;
@@ -187,7 +198,7 @@ const CopyConfirmation = styled(motion.div)`
 `;
 
 const ChangesPanel = styled(motion.div)`
-  background: #f8f9fa;
+  background: ${({ theme }) => theme.colors.surfaceHover};
   border-radius: 6px;
   padding: 16px;
   margin-top: 20px;
@@ -198,7 +209,7 @@ const ChangeItem = styled.div`
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: white;
+  background: ${({ theme }) => theme.colors.surface};
   border-radius: 4px;
   margin-bottom: 8px;
 
@@ -214,19 +225,19 @@ const ChangeText = styled.div`
 `;
 
 const OriginalText = styled.span`
-  color: #dc3545;
+  color: ${({ theme }) => theme.colors.error};
   text-decoration: line-through;
   opacity: 0.8;
 `;
 
 const CorrectedText = styled.span`
-  color: #28a745;
+  color: ${({ theme }) => theme.colors.success};
   font-weight: 500;
 `;
 
 const ChangeReason = styled.div`
   font-size: 12px;
-  color: #6c757d;
+  color: ${({ theme }) => theme.colors.textSubtle};
   padding-left: 12px;
 `;
 
