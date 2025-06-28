@@ -269,44 +269,44 @@
         </header>
 
         <div class="correction-modes">
-            <button class="mode-button active">Business</button>
-            <button class="mode-button">Academic</button>
-            <button class="mode-button">Casual</button>
-            <button class="mode-button">Presentation</button>
+            <button class="mode-button active" aria-label="Business correction mode">Business</button>
+            <button class="mode-button" aria-label="Academic correction mode">Academic</button>
+            <button class="mode-button" aria-label="Casual correction mode">Casual</button>
+            <button class="mode-button" aria-label="Presentation correction mode">Presentation</button>
         </div>
 
         <div class="text-areas">
             <div class="text-area-container">
-                <label class="text-area-label">Input</label>
-                <textarea class="text-area" placeholder="Enter Japanese text"></textarea>
+                <label class="text-area-label" for="input-text">Input</label>
+                <textarea class="text-area" id="input-text" aria-label="Input text for correction" placeholder="Enter Japanese text"></textarea>
             </div>
             <div class="text-area-container">
-                <label class="text-area-label">Output</label>
-                <textarea class="text-area" placeholder="Corrected text" readonly></textarea>
+                <label class="text-area-label" for="output-text">Output</label>
+                <textarea class="text-area" id="output-text" aria-label="Corrected text output" placeholder="Corrected text" readonly></textarea>
             </div>
         </div>
 
         <div class="actions">
-            <button class="action-button primary-button">
-                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="action-button primary-button" aria-label="Correct text">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 Correct
             </button>
-            <button class="action-button secondary-button">
-                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="action-button secondary-button" aria-label="Copy corrected text to clipboard">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
                 </svg>
                 Copy
             </button>
-            <button class="action-button secondary-button">
-                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="action-button secondary-button" aria-label="View correction history">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 History
             </button>
-            <button class="action-button secondary-button">
-                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="action-button secondary-button" aria-label="Open settings">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
@@ -330,7 +330,7 @@
                 <span>Ready</span>
             </div>
             <div>
-                <span>⌘T to activate</span>
+                <span>⌘Shift+T to activate</span>
             </div>
         </div>
     </div>

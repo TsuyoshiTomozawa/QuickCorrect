@@ -204,7 +204,7 @@ export interface ElectronAPI {
   getStatistics: () => Promise<Statistics>;
 
   // Debug
-  getDebugInfo?: () => Promise<any>;
+  getDebugInfo?: () => Promise<DebugInfo>;
 
   // Event listeners
   on?: (channel: string, callback: Function) => void;
@@ -226,6 +226,23 @@ export interface PermissionStatus {
   microphone: boolean;
   camera: boolean;
   notifications: boolean;
+}
+
+export interface DebugInfo {
+  version: string;
+  environment: "development" | "production" | "test";
+  settings: AppSettings;
+  systemInfo: SystemInfo;
+  permissions: PermissionStatus;
+  aiProvider: {
+    name: string;
+    isConfigured: boolean;
+  };
+  errors: Array<{
+    timestamp: Date;
+    message: string;
+    stack?: string;
+  }>;
 }
 
 // Utility types

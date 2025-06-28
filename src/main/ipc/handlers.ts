@@ -54,12 +54,7 @@ export async function initializeIPCHandlers(): Promise<void> {
   const apiKey = apiKeyFromEnv || settings.apiKeys?.[primaryProvider];
 
   if (apiKey) {
-    aiProvider = ProviderFactory.createProvider(primaryProvider, {
-      apiKey,
-      temperature: settings.aiSettings?.temperature,
-      maxTokens: settings.aiSettings?.maxTokens,
-      geminiModel: settings.aiSettings?.geminiModel,
-    });
+    configureAIProvider(primaryProvider, apiKey, settings.aiSettings);
   }
 
   // Register all IPC handlers
@@ -68,6 +63,22 @@ export async function initializeIPCHandlers(): Promise<void> {
   registerHistoryHandlers();
   registerClipboardHandlers();
   registerSystemHandlers();
+}
+
+/**
+ * Configure AI provider with the given settings
+ */
+function configureAIProvider(
+  primaryProvider: string,
+  apiKey: string,
+  aiSettings?: Partial<AppSettings["aiSettings"]>
+): void {
+  aiProvider = ProviderFactory.createProvider(primaryProvider, {
+    apiKey,
+    temperature: aiSettings?.temperature,
+    maxTokens: aiSettings?.maxTokens,
+    geminiModel: aiSettings?.geminiModel,
+  });
 }
 
 /**
@@ -164,8 +175,7 @@ function registerSettingsHandlers(): void {
 
           if (apiKey) {
             const fullSettings = await settingsManager.getSettings();
-            aiProvider = ProviderFactory.createProvider(primaryProvider, {
-              apiKey,
+            configureAIProvider(primaryProvider, apiKey, {
               temperature:
                 settings.aiSettings?.temperature ||
                 fullSettings.aiSettings?.temperature,
