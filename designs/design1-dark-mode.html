@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickCorrect - Dark Mode Design</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #1A1A1A;
+            color: #F2F2F7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #2C2C2E;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #F2F2F7;
+            margin-bottom: 8px;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            font-weight: 400;
+            color: #8E8E93;
+        }
+
+        .correction-modes {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            justify-content: center;
+        }
+
+        .mode-button {
+            padding: 8px 16px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: #F2F2F7;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-button:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .mode-button.active {
+            background-color: #0A84FF;
+            color: white;
+        }
+
+        .text-areas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .text-area-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .text-area-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #8E8E93;
+        }
+
+        .text-area {
+            width: 100%;
+            min-height: 300px;
+            background-color: #1A1A1A;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            font-family: inherit;
+            font-size: 15px;
+            color: #F2F2F7;
+            resize: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .text-area:focus {
+            outline: none;
+            border-color: #0A84FF;
+        }
+
+        .text-area::placeholder {
+            color: #8E8E93;
+        }
+
+        .actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .action-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .primary-button {
+            background-color: #0A84FF;
+            color: white;
+        }
+
+        .primary-button:hover {
+            background-color: #0968C3;
+        }
+
+        .secondary-button {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #F2F2F7;
+        }
+
+        .secondary-button:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .status-bar {
+            margin-top: 24px;
+            padding: 16px;
+            background-color: #1A1A1A;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #8E8E93;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #30D158;
+        }
+
+        @media (max-width: 768px) {
+            .text-areas {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            .action-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title">QuickCorrect</h1>
+            <p class="app-subtitle">AI-powered Japanese text correction</p>
+        </header>
+
+        <div class="correction-modes">
+            <button class="mode-button active" aria-label="Business correction mode">Business</button>
+            <button class="mode-button" aria-label="Academic correction mode">Academic</button>
+            <button class="mode-button" aria-label="Casual correction mode">Casual</button>
+            <button class="mode-button" aria-label="Presentation correction mode">Presentation</button>
+        </div>
+
+        <div class="text-areas">
+            <div class="text-area-container">
+                <label class="text-area-label" for="input-text">Original Text</label>
+                <textarea class="text-area" id="input-text" aria-label="Original text for correction" placeholder="Enter your Japanese text here..."></textarea>
+            </div>
+            <div class="text-area-container">
+                <label class="text-area-label" for="output-text">Corrected Text</label>
+                <textarea class="text-area" id="output-text" aria-label="Corrected text output" placeholder="Corrected text will appear here..." readonly></textarea>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action-button primary-button" aria-label="Correct text">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Correct Text
+            </button>
+            <button class="action-button secondary-button" aria-label="Copy corrected text">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Copy
+            </button>
+            <button class="action-button secondary-button" aria-label="View history">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                History
+            </button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Ready</span>
+            </div>
+            <div>
+                <span>Hotkey: ⌘Shift+T</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

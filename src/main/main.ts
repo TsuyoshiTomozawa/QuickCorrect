@@ -381,6 +381,7 @@ async function setupIPC(): Promise<void> {
  * 現在未使用だが、将来的に使用する可能性があるため保持
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-expect-error - Function preserved for future use
 async function _showWindowWithSelectedText(): Promise<void> {
   try {
     // 選択されたテキストを取得

@@ -1,6 +1,6 @@
 /**
  * QuickCorrect - Type Definitions
- * 
+ *
  * This file contains all TypeScript interfaces and types used throughout the application.
  */
 
@@ -24,7 +24,20 @@ export interface CorrectionChange {
   };
 }
 
-export type CorrectionMode = 'business' | 'academic' | 'casual' | 'presentation';
+export type CorrectionMode =
+  | "business"
+  | "academic"
+  | "casual"
+  | "presentation";
+
+// Gemini model constants
+export const GEMINI_MODELS = {
+  FLASH_2_0_EXP: "gemini-2.0-flash-exp",
+  FLASH_1_5: "gemini-1.5-flash",
+  FLASH_1_5_8B: "gemini-1.5-flash-8b",
+} as const;
+
+export type GeminiModel = (typeof GEMINI_MODELS)[keyof typeof GEMINI_MODELS];
 
 // History-related types
 export interface CorrectionHistory {
@@ -61,10 +74,11 @@ export interface AppSettings {
     };
   };
   aiSettings: {
-    primaryProvider: 'openai' | 'anthropic' | 'google';
+    primaryProvider: "openai" | "anthropic" | "google";
     temperature: number;
     maxTokens: number;
     timeout: number;
+    geminiModel?: GeminiModel;
   };
   privacy: {
     saveHistory: boolean;
@@ -139,61 +153,66 @@ export interface AppError {
   timestamp: Date;
 }
 
-export type ErrorCode = 
-  | 'API_ERROR'
-  | 'NETWORK_ERROR'
-  | 'VALIDATION_ERROR'
-  | 'PERMISSION_ERROR'
-  | 'HOTKEY_ERROR'
-  | 'STORAGE_ERROR'
-  | 'UNKNOWN_ERROR';
+export type ErrorCode =
+  | "API_ERROR"
+  | "NETWORK_ERROR"
+  | "VALIDATION_ERROR"
+  | "PERMISSION_ERROR"
+  | "HOTKEY_ERROR"
+  | "STORAGE_ERROR"
+  | "UNKNOWN_ERROR";
 
 // IPC types for Electron communication
 export interface ElectronAPI {
   // Text correction
-  correctText: (text: string, mode: CorrectionMode) => Promise<CorrectionResult>;
-  
+  correctText: (
+    text: string,
+    mode: CorrectionMode,
+  ) => Promise<CorrectionResult>;
+
   // Settings
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: Partial<AppSettings>) => Promise<boolean>;
-  
+
   // History
   getHistory: (limit?: number) => Promise<CorrectionHistory[]>;
-  saveToHistory: (history: Omit<CorrectionHistory, 'id' | 'timestamp'>) => Promise<boolean>;
+  saveToHistory: (
+    history: Omit<CorrectionHistory, "id" | "timestamp">,
+  ) => Promise<boolean>;
   deleteHistory: (id: string) => Promise<boolean>;
   clearHistory: () => Promise<boolean>;
-  
+
   // Window controls
   hideWindow: () => void;
   minimizeWindow: () => void;
   closeWindow: () => void;
-  
+
   // Events
   onTextSelected: (callback: (text: string) => void) => void;
   removeAllListeners: (channel: string) => void;
-  
+
   // Clipboard
   copyToClipboard: (text: string) => Promise<boolean>;
   getClipboardText: () => Promise<string>;
-  
+
   // System
   getSystemInfo: () => Promise<SystemInfo>;
   checkPermissions: () => Promise<PermissionStatus>;
   platform: NodeJS.Platform;
-  
+
   // Statistics
-  getStatistics: () => Promise<any>;
-  
+  getStatistics: () => Promise<Statistics>;
+
   // Debug
-  getDebugInfo?: () => Promise<any>;
-  
+  getDebugInfo?: () => Promise<DebugInfo>;
+
   // Event listeners
   on?: (channel: string, callback: Function) => void;
   once?: (channel: string, callback: Function) => void;
 }
 
 export interface SystemInfo {
-  platform: 'win32' | 'darwin' | 'linux';
+  platform: "win32" | "darwin" | "linux";
   version: string;
   arch: string;
   memory: {
@@ -209,6 +228,23 @@ export interface PermissionStatus {
   notifications: boolean;
 }
 
+export interface DebugInfo {
+  version: string;
+  environment: "development" | "production" | "test";
+  settings: AppSettings;
+  systemInfo: SystemInfo;
+  permissions: PermissionStatus;
+  aiProvider: {
+    name: string;
+    isConfigured: boolean;
+  };
+  errors: Array<{
+    timestamp: Date;
+    message: string;
+    stack?: string;
+  }>;
+}
+
 // Utility types
 export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
@@ -218,6 +254,38 @@ export interface BaseComponentProps {
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+}
+
+// History search options
+export interface HistorySearchOptions {
+  query?: string;
+  mode?: CorrectionMode;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+  onlyFavorites?: boolean;
+}
+
+// Statistics interface
+export interface Statistics {
+  totalCorrections: number;
+  correctionsByMode: Record<CorrectionMode, number>;
+  averageProcessingTime: number;
+  totalTokensUsed: number;
+  mostUsedProvider: string;
+  dailyUsage: Array<{
+    date: string;
+    count: number;
+  }>;
+}
+
+// Permissions interface
+export interface Permissions {
+  accessibility: boolean;
+  microphone: boolean;
+  camera: boolean;
+  notifications: boolean;
 }
 
 // Global declarations for window object

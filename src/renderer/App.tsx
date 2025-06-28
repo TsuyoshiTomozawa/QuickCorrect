@@ -17,7 +17,11 @@ import {
   useHistory,
   useClipboard,
 } from "./hooks";
-import { CorrectionMode } from "../types/interfaces";
+import {
+  CorrectionMode,
+  GEMINI_MODELS,
+  GeminiModel,
+} from "../types/interfaces";
 
 // Styled components
 const AppContainer = styled.div`
@@ -307,36 +311,80 @@ const App: React.FC = () => {
 
                 {/* Gemini API Key */}
                 {settings?.aiSettings?.primaryProvider === "google" && (
-                  <div style={{ marginBottom: "10px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        marginBottom: "3px",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Google Gemini
-                    </label>
-                    <input
-                      type="password"
-                      value={settings?.apiKeys?.google || ""}
-                      onChange={(e) => {
-                        updateSettings({
-                          apiKeys: {
-                            ...settings?.apiKeys,
-                            google: e.target.value,
-                          },
-                        });
-                      }}
-                      placeholder="AIza..."
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ddd",
-                      }}
-                    />
-                  </div>
+                  <>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "3px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Google Gemini
+                      </label>
+                      <input
+                        type="password"
+                        value={settings?.apiKeys?.google || ""}
+                        onChange={(e) => {
+                          updateSettings({
+                            apiKeys: {
+                              ...settings?.apiKeys,
+                              google: e.target.value,
+                            },
+                          });
+                        }}
+                        placeholder="AIza..."
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                    </div>
+                    {/* Gemini Model Selection */}
+                    <div style={{ marginBottom: "10px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "3px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        Geminiモデル
+                      </label>
+                      <select
+                        value={
+                          settings?.aiSettings?.geminiModel ||
+                          GEMINI_MODELS.FLASH_1_5
+                        }
+                        onChange={(e) => {
+                          updateSettings({
+                            aiSettings: {
+                              ...settings?.aiSettings,
+                              geminiModel: e.target.value as GeminiModel,
+                            },
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        <option value={GEMINI_MODELS.FLASH_2_0_EXP}>
+                          Gemini 2.0 Flash (実験版)
+                        </option>
+                        <option value={GEMINI_MODELS.FLASH_1_5}>
+                          Gemini 1.5 Flash
+                        </option>
+                        <option value={GEMINI_MODELS.FLASH_1_5_8B}>
+                          Gemini 1.5 Flash 8B (最安価)
+                        </option>
+                      </select>
+                    </div>
+                  </>
                 )}
               </div>
 

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickCorrect - Minimal Neutral Design</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #F8F8F8;
+            color: #333333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            border: 1px solid #EAEAEA;
+            padding: 40px;
+        }
+
+        .app-header {
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #EAEAEA;
+        }
+
+        .app-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .app-subtitle {
+            font-size: 14px;
+            font-weight: 400;
+            color: #888888;
+            letter-spacing: 0.01em;
+        }
+
+        .correction-modes {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .mode-button {
+            padding: 6px 16px;
+            background-color: #FFFFFF;
+            border: 1px solid #EAEAEA;
+            border-radius: 8px;
+            color: #333333;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-button:hover {
+            background-color: #F0F0F0;
+        }
+
+        .mode-button.active {
+            background-color: #333333;
+            color: #FFFFFF;
+            border-color: #333333;
+        }
+
+        .text-areas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .text-area-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .text-area-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .text-area {
+            width: 100%;
+            min-height: 320px;
+            background-color: #FFFFFF;
+            border: 1px solid #EAEAEA;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #333333;
+            resize: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .text-area:focus {
+            outline: none;
+            border-color: #333333;
+        }
+
+        .text-area::placeholder {
+            color: #CCCCCC;
+        }
+
+        .text-area[readonly] {
+            background-color: #FAFAFA;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            padding-top: 24px;
+            border-top: 1px solid #EAEAEA;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #FFFFFF;
+            color: #333333;
+        }
+
+        .action-button:hover {
+            background-color: #F0F0F0;
+        }
+
+        .primary-button {
+            background-color: #333333;
+            color: #FFFFFF;
+            border-color: #333333;
+        }
+
+        .primary-button:hover {
+            background-color: #222222;
+            border-color: #222222;
+        }
+
+        .secondary-button {
+            background-color: #FFFFFF;
+            color: #333333;
+            border: 1px solid #EAEAEA;
+        }
+
+        .secondary-button:hover {
+            background-color: #F0F0F0;
+            border-color: #D0D0D0;
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .status-bar {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #EAEAEA;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #888888;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #333333;
+        }
+
+        .info-section {
+            background-color: #FAFAFA;
+            border: 1px solid #EAEAEA;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+            font-size: 13px;
+            color: #666666;
+        }
+
+        .info-title {
+            font-weight: 500;
+            color: #333333;
+            margin-bottom: 8px;
+        }
+
+        .info-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .info-list li {
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-list li::before {
+            content: "—";
+            color: #CCCCCC;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 24px;
+            }
+            
+            .text-areas {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                flex-wrap: wrap;
+            }
+            
+            .action-button {
+                flex: 1;
+                justify-content: center;
+                min-width: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title">QuickCorrect</h1>
+            <p class="app-subtitle">Professional Japanese text correction tool</p>
+        </header>
+
+        <div class="correction-modes">
+            <button class="mode-button active" aria-label="Business correction mode">Business</button>
+            <button class="mode-button" aria-label="Academic correction mode">Academic</button>
+            <button class="mode-button" aria-label="Casual correction mode">Casual</button>
+            <button class="mode-button" aria-label="Presentation correction mode">Presentation</button>
+        </div>
+
+        <div class="text-areas">
+            <div class="text-area-container">
+                <label class="text-area-label" for="input-text">Input</label>
+                <textarea class="text-area" id="input-text" aria-label="Input text for correction" placeholder="Enter Japanese text"></textarea>
+            </div>
+            <div class="text-area-container">
+                <label class="text-area-label" for="output-text">Output</label>
+                <textarea class="text-area" id="output-text" aria-label="Corrected text output" placeholder="Corrected text" readonly></textarea>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action-button primary-button" aria-label="Correct text">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Correct
+            </button>
+            <button class="action-button secondary-button" aria-label="Copy corrected text to clipboard">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+                Copy
+            </button>
+            <button class="action-button secondary-button" aria-label="View correction history">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                History
+            </button>
+            <button class="action-button secondary-button" aria-label="Open settings">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Settings
+            </button>
+        </div>
+
+        <div class="info-section">
+            <h3 class="info-title">Correction Modes</h3>
+            <ul class="info-list">
+                <li>Business: Formal, professional tone</li>
+                <li>Academic: Technical accuracy, scholarly style</li>
+                <li>Casual: Natural, conversational tone</li>
+                <li>Presentation: Clear, impactful statements</li>
+            </ul>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Ready</span>
+            </div>
+            <div>
+                <span>⌘Shift+T to activate</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
