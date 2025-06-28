@@ -94,7 +94,7 @@ const HeaderButton = styled.button`
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
+    box-shadow: ${({ theme }) => getFocusShadow(theme)};
   }
 
   &:focus:not(:focus-visible) {
@@ -211,7 +211,7 @@ const NumberInput = styled.input`
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
-    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.accent}33;
+    box-shadow: ${({ theme }) => getFocusShadow(theme)};
   }
 `;
 
@@ -334,16 +334,16 @@ const App: React.FC = () => {
       <Header>
         <Title>QuickCorrect</Title>
         <div>
-          <HeaderButton onClick={handleSettingsToggle}>
+          <HeaderButton onClick={handleSettingsToggle} aria-label="設定を開く">
             ⚙️
           </HeaderButton>
-          <HeaderButton onClick={handleHistoryToggle}>
+          <HeaderButton onClick={handleHistoryToggle} aria-label="履歴を開く">
             📋
           </HeaderButton>
-          <HeaderButton onClick={hideWindow}>
+          <HeaderButton onClick={hideWindow} aria-label="ウィンドウを最小化">
             ➖
           </HeaderButton>
-          <HeaderButton onClick={closeWindow}>✕</HeaderButton>
+          <HeaderButton onClick={closeWindow} aria-label="ウィンドウを閉じる">✕</HeaderButton>
         </div>
       </Header>
 

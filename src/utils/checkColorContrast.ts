@@ -21,8 +21,8 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 function getLuminance(rgb: { r: number; g: number; b: number }): number {
   const { r, g, b } = rgb;
   const sRGB = [r, g, b].map((val) => {
-    val = val / 255;
-    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+    const normalizedVal = val / 255;
+    return normalizedVal <= 0.03928 ? normalizedVal / 12.92 : Math.pow((normalizedVal + 0.055) / 1.055, 2.4);
   });
   return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
 }
@@ -114,15 +114,22 @@ function checkThemeContrast(themeName: string, theme: typeof lightTheme | typeof
   return allPass;
 }
 
-// Run the checks
-const lightPass = checkThemeContrast('Light', lightTheme);
-const darkPass = checkThemeContrast('Dark', darkTheme);
+// Export function to run contrast checks
+export function runContrastChecks(): { lightPass: boolean; darkPass: boolean } {
+  const lightPass = checkThemeContrast('Light', lightTheme);
+  const darkPass = checkThemeContrast('Dark', darkTheme);
 
-console.log('\n=== Summary ===');
-console.log(`Light theme: ${lightPass ? '✅ All checks passed' : '❌ Some checks failed'}`);
-console.log(`Dark theme: ${darkPass ? '✅ All checks passed' : '❌ Some checks failed'}`);
+  console.log('\n=== Summary ===');
+  console.log(`Light theme: ${lightPass ? '✅ All checks passed' : '❌ Some checks failed'}`);
+  console.log(`Dark theme: ${darkPass ? '✅ All checks passed' : '❌ Some checks failed'}`);
 
-if (!lightPass || !darkPass) {
-  console.log('\n⚠️  Some color combinations do not meet WCAG AA standards.');
-  console.log('Consider adjusting the colors to improve accessibility.');
+  if (!lightPass || !darkPass) {
+    console.log('\n⚠️  Some color combinations do not meet WCAG AA standards.');
+    console.log('Consider adjusting the colors to improve accessibility.');
+  }
+
+  return { lightPass, darkPass };
 }
+
+// Export individual functions for testing
+export { hexToRgb, getLuminance, getContrastRatio, checkThemeContrast };

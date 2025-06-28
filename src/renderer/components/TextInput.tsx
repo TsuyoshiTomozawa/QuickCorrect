@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BaseComponentProps, CorrectionMode } from '../../types/interfaces';
+import { getFocusShadow } from '../contexts/ThemeContext';
 
 interface TextInputProps extends BaseComponentProps {
   value: string;
@@ -63,7 +64,7 @@ const ModeButton = styled.button<{ $isActive: boolean }>`
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 3px ${props => props.theme.colors.accent}33;
+    box-shadow: ${props => getFocusShadow(props.theme)};
   }
 
   &:focus:not(:focus-visible) {
@@ -95,7 +96,7 @@ const TextArea = styled.textarea`
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
+    box-shadow: ${({ theme }) => getFocusShadow(theme)};
   }
 
   &::placeholder {

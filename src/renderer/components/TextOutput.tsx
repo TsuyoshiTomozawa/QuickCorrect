@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BaseComponentProps, CorrectionResult } from '../../types/interfaces';
+import { getFocusShadow } from '../contexts/ThemeContext';
 
 interface TextOutputProps extends BaseComponentProps {
   correctionResult: CorrectionResult | null;
@@ -44,11 +45,11 @@ const StatusBadge = styled.div<{ $type: 'success' | 'loading' | 'error' | 'idle'
   font-size: 12px;
   font-weight: 500;
   background: ${props => {
-    const opacity = props.theme.mode === 'dark' ? '0.2' : '0.1';
+    const opacity = props.theme.mode === 'dark' ? '33' : '1A'; // 20% and 10% in hex
     switch (props.$type) {
-      case 'success': return `${props.theme.colors.success}${opacity.replace('.', '')}`;
-      case 'loading': return `${props.theme.colors.accent}${opacity.replace('.', '')}`;
-      case 'error': return `${props.theme.colors.error}${opacity.replace('.', '')}`;
+      case 'success': return `${props.theme.colors.success}${opacity}`;
+      case 'loading': return `${props.theme.colors.accent}${opacity}`;
+      case 'error': return `${props.theme.colors.error}${opacity}`;
       default: return props.theme.colors.borderSubtle;
     }
   }};
@@ -174,7 +175,7 @@ const ActionButton = styled(motion.button)`
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.accent}33;
+    box-shadow: ${({ theme }) => getFocusShadow(theme)};
   }
 
   &:focus:not(:focus-visible) {

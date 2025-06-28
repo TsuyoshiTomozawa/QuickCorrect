@@ -189,5 +189,17 @@ export const useTheme = (): ThemeContextValue => {
   return context;
 };
 
+// Helper function to create focus shadow with proper opacity
+export const getFocusShadow = (theme: Theme): string => {
+  const rgb = theme.colors.accent.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (rgb) {
+    const r = parseInt(rgb[1], 16);
+    const g = parseInt(rgb[2], 16);
+    const b = parseInt(rgb[3], 16);
+    return `0 0 0 3px rgba(${r}, ${g}, ${b}, 0.2)`;
+  }
+  return `0 0 0 3px ${theme.colors.accent}33`; // Fallback
+};
+
 // Export themes for testing or direct usage
 export { lightTheme, darkTheme };

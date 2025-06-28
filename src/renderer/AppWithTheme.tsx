@@ -5,19 +5,30 @@ import { useSettings } from "./hooks";
 
 const AppWithTheme: React.FC = () => {
   const { settings, updateSettings } = useSettings();
-  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+  
+  // Initialize theme based on settings or system preference
+  const getInitialTheme = (): ThemeMode => {
+    if (settings?.appearance?.theme && settings.appearance.theme !== "system") {
+      return settings.appearance.theme;
+    }
+    // Fall back to system preference
+    const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return isDarkMode ? "dark" : "light";
+  };
+  
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme);
 
-  // Determine the effective theme based on settings
+  // Update theme when settings change
   useEffect(() => {
-    if (!settings?.appearance?.theme) return;
-
-    if (settings.appearance.theme === "system") {
+    const theme = settings?.appearance?.theme || "system";
+    
+    if (theme === "system") {
       // Use system preference
       const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setThemeMode(isDarkMode ? "dark" : "light");
     } else {
       // Use explicit theme setting
-      setThemeMode(settings.appearance.theme);
+      setThemeMode(theme);
     }
   }, [settings?.appearance?.theme]);
 
