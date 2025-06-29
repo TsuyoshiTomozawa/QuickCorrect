@@ -84,6 +84,9 @@ export interface AppSettings {
     saveHistory: boolean;
     analyticsEnabled: boolean;
   };
+  appearance: {
+    theme: "light" | "dark" | "system";
+  };
 }
 
 // API-related types
