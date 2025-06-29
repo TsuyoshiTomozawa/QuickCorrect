@@ -73,7 +73,7 @@ function configureAIProvider(
   apiKey: string,
   aiSettings?: Partial<AppSettings["aiSettings"]>
 ): void {
-  aiProvider = ProviderFactory.createProvider(primaryProvider, {
+  aiProvider = ProviderFactory.createProvider(primaryProvider as "openai" | "anthropic" | "google", {
     apiKey,
     temperature: aiSettings?.temperature,
     maxTokens: aiSettings?.maxTokens,

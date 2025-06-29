@@ -22,7 +22,7 @@ import {
   GEMINI_MODELS,
   GeminiModel,
 } from "../types/interfaces";
-import { ThemeProvider, useTheme, ThemeMode, getFocusShadow } from "./contexts/ThemeContext";
+import { getFocusShadow } from "./contexts/ThemeContext";
 
 // Styled components
 const AppContainer = styled.div`

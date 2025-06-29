@@ -41,6 +41,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   privacy: {
     saveHistory: true,
     analyticsEnabled: false
+  },
+  appearance: {
+    theme: 'system'
   }
 };
 
