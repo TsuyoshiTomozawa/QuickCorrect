@@ -69,7 +69,7 @@ export async function initializeIPCHandlers(): Promise<void> {
  * Configure AI provider with the given settings
  */
 function configureAIProvider(
-  primaryProvider: string,
+  primaryProvider: "openai" | "anthropic" | "google",
   apiKey: string,
   aiSettings?: Partial<AppSettings["aiSettings"]>
 ): void {
