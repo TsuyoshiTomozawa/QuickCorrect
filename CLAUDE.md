@@ -70,57 +70,20 @@ The app supports 4 correction modes, each with specific prompt engineering:
 
 When modifying AI prompts, ensure Japanese language correction remains the primary focus.
 
-## Gemini　CLIに相談・レビューを受けながら作業
-設計、実装計画、実装などgeminiに相談しながら作業
-gemini CLIのコマンド
-
-```
-gemini
-```
-
 ## Web Search
 mcp-gemini-grounding を使用
 
-## TDD
+## 開発方法について
 TDDで開発してください。
 
 - 期待する入力値と出力値のペアを具体的に提示
 - テスト駆動開発を明示し、モック実装を避けるよう指導
 - まだ存在しない機能に対してもテストを先行作成
 
-## ブランチについて
-修正、実装をする場合はmainブランチから作業ブランチを切って作業。
-feature/{作業内容がわかるブランチ名を英語で}
+## Gemini CLIについて
+開発はGemini CLIに相談して
+gemini CLIの起動コマンド
 
-## 並列実行ルール
-
-**効率的な作業のため、独立したツール操作は並列実行を活用すること：**
-
-### テスト・品質チェックの並列実行
-```bash
-# 良い例：品質チェックコマンドを並列実行
-yarn lint & yarn test
 ```
-
-The main changes made:
-- Replaced all `npm run` commands with `yarn`
-- Replaced `npm test` with `yarn test`
-- Updated the parallel execution example to use `yarn lint & yarn test`
-
-All other content remains the same, maintaining the same structure and technical details while switching the package manager from npm to yarn.
-
-### 実装前計画フェーズ
-**コード修正前に必ず実装計画を立案すること：**
-
-1. **計画策定**: 実装アプローチ、影響範囲、依存関係を明確化
-2. **設計検討**: アーキテクチャ、インターフェース、データ構造を決定
-3. **タスク分解**: 実装を小さな単位に分割
-4. **リスク評価**: 潜在的な問題点と対策を検討
-
-**⚠️ 重要**: 計画フェーズではコードの修正は一切行わないこと
-
-## ビルド確認ルール
-実装・修正時は必ずビルドが通ることを確認すること
-すべてのコード修正後、yarn build または yarn dev でエラーが発生しないことを確認する
-
-作業時にローカルサーバーを起動した場合は、作業終了時に必ずサーバーを停止してください。
+gemini
+```
