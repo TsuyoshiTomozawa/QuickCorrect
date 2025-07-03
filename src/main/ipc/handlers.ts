@@ -37,32 +37,47 @@ let aiProvider: any;
 export async function initializeIPCHandlers(): Promise<void> {
   const userDataPath = app.getPath("userData");
 
-  // Initialize managers
-  historyManager = new HistoryManager(userDataPath);
+  // Initialize settings manager (doesn't depend on database)
   settingsManager = new SettingsManager(userDataPath);
 
-  // Initialize history database
-  await historyManager.initialize();
-
-  // Load settings and initialize AI provider
-  const settings = await settingsManager.getSettings();
-  const primaryProvider = settings.aiSettings?.primaryProvider || "openai";
-
-  // First try to get API key from environment variable (for OpenAI only)
-  const apiKeyFromEnv =
-    primaryProvider === "openai" ? process.env.OPENAI_API_KEY : undefined;
-  const apiKey = apiKeyFromEnv || settings.apiKeys?.[primaryProvider];
-
-  if (apiKey) {
-    configureAIProvider(primaryProvider, apiKey, settings.aiSettings);
-  }
-
-  // Register all IPC handlers
-  registerCorrectionHandlers();
+  // Register handlers that don't depend on database first
   registerSettingsHandlers();
-  registerHistoryHandlers();
   registerClipboardHandlers();
   registerSystemHandlers();
+
+  try {
+    // Initialize history manager
+    historyManager = new HistoryManager(userDataPath);
+    await historyManager.initialize();
+    
+    // Register history handlers after successful initialization
+    registerHistoryHandlers();
+  } catch (error) {
+    console.error("Failed to initialize history manager:", error);
+    // Register stub history handlers to prevent errors
+    registerStubHistoryHandlers();
+  }
+
+  // Load settings and initialize AI provider
+  try {
+    const settings = await settingsManager.getSettings();
+    const primaryProvider = settings.aiSettings?.primaryProvider || "openai";
+
+    // First try to get API key from environment variable (for OpenAI only)
+    const apiKeyFromEnv =
+      primaryProvider === "openai" ? process.env.OPENAI_API_KEY : undefined;
+    const apiKey = apiKeyFromEnv || settings.apiKeys?.[primaryProvider];
+
+    if (apiKey) {
+      configureAIProvider(primaryProvider, apiKey, settings.aiSettings);
+    }
+
+    // Register correction handlers after AI provider is configured
+    registerCorrectionHandlers();
+  } catch (error) {
+    console.error("Failed to initialize AI provider:", error);
+    // Continue without AI functionality
+  }
 }
 
 /**
@@ -154,6 +169,10 @@ function registerSettingsHandlers(): void {
     "save-settings",
     async (_event, settings: Partial<AppSettings>) => {
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('IPC Handler: save-settings called with:', JSON.stringify(settings, null, 2));
+        }
+        
         // Validate settings
         const validation = validateSettings(settings);
         if (!validation.valid) {
@@ -162,6 +181,9 @@ function registerSettingsHandlers(): void {
 
         // Save settings
         await settingsManager.updateSettings(settings);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('IPC Handler: settings saved successfully');
+        }
 
         // Re-initialize AI provider if API key changed
         if (settings.apiKeys) {
@@ -203,10 +225,54 @@ function registerSettingsHandlers(): void {
 }
 
 /**
+ * Register stub history handlers when database is not available
+ */
+function registerStubHistoryHandlers(): void {
+  ipcMain.handle("get-history", async () => {
+    console.warn("History functionality not available");
+    return [];
+  });
+
+  ipcMain.handle("save-to-history", async () => {
+    console.warn("History functionality not available");
+    return { success: false, error: "History database not initialized" };
+  });
+
+  ipcMain.handle("delete-history", async () => {
+    console.warn("History functionality not available");
+    return false;
+  });
+
+  ipcMain.handle("clear-history", async () => {
+    console.warn("History functionality not available");
+    return false;
+  });
+
+  ipcMain.handle("search-history", async () => {
+    console.warn("History functionality not available");
+    return [];
+  });
+
+  ipcMain.handle("get-history-stats", async () => {
+    console.warn("History functionality not available");
+    return { total: 0, byMode: {}, byDate: {} };
+  });
+
+  ipcMain.handle("export-history", async () => {
+    console.warn("History functionality not available");
+    return { success: false, error: "History database not initialized" };
+  });
+}
+
+/**
  * Register history related handlers
  */
 function registerHistoryHandlers(): void {
   ipcMain.handle("get-history", async (_event, limit?: number) => {
+    if (!historyManager) {
+      console.warn("History manager not initialized");
+      return [];
+    }
     try {
       return await historyManager.getHistory(limit);
     } catch (error: any) {

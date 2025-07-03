@@ -40,7 +40,9 @@
       "Bash(cp:*)",
       "mcp__Phantom__phantom_github_checkout",
       "Bash(gemini:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx playwright:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   },

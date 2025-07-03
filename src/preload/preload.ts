@@ -79,8 +79,15 @@ const electronAPI: ElectronAPI = {
   
   saveSettings: async (settings: Partial<AppSettings>): Promise<boolean> => {
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Preload: saveSettings called with:', settings);
+      }
       const result = await ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
-      return result?.success || result === true;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Preload: saveSettings result:', result);
+      }
+      // Return true if result is explicitly true or if it's an object with success: true
+      return result === true || (typeof result === 'object' && result?.success === true);
     } catch (error) {
       console.error('Error saving settings:', error);
       throw error;
