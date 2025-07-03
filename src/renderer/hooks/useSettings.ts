@@ -138,18 +138,24 @@ export function useSettings(): UseSettingsReturn {
       return true;
     }
     
-    console.log('useSettings: updateSettings called with:', updates);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('useSettings: updateSettings called with:', updates);
+    }
     setState(prev => ({ ...prev, isSaving: true, error: null }));
     
     try {
       const success = await api.saveSettings(updates);
-      console.log('useSettings: saveSettings result:', success);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('useSettings: saveSettings result:', success);
+      }
       
       if (success) {
         // Update local state optimistically with deep merge
         setState(prev => {
           const newSettings = prev.settings ? deepMerge(prev.settings, updates) : null;
-          console.log('useSettings: merged settings:', newSettings);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('useSettings: merged settings:', newSettings);
+          }
           return {
             ...prev,
             settings: newSettings,
@@ -166,7 +172,9 @@ export function useSettings(): UseSettingsReturn {
       
       return success;
     } catch (error) {
-      console.error('useSettings: error saving settings:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('useSettings: error saving settings:', error);
+      }
       setState(prev => ({
         ...prev,
         isSaving: false,

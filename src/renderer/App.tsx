@@ -396,11 +396,13 @@ const App: React.FC = () => {
                   value={settings?.appearance?.theme || "system"}
                   onChange={(e) => {
                     const newTheme = e.target.value as "light" | "dark" | "system";
-                    console.log('Theme change:', { 
-                      currentTheme: settings?.appearance?.theme, 
-                      newTheme,
-                      value: e.target.value 
-                    });
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Theme change:', { 
+                        currentTheme: settings?.appearance?.theme, 
+                        newTheme,
+                        value: e.target.value 
+                      });
+                    }
                     updateSettings({
                       appearance: {
                         theme: newTheme,

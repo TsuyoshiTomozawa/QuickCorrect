@@ -169,7 +169,9 @@ function registerSettingsHandlers(): void {
     "save-settings",
     async (_event, settings: Partial<AppSettings>) => {
       try {
-        console.log('IPC Handler: save-settings called with:', JSON.stringify(settings, null, 2));
+        if (process.env.NODE_ENV === 'development') {
+          console.log('IPC Handler: save-settings called with:', JSON.stringify(settings, null, 2));
+        }
         
         // Validate settings
         const validation = validateSettings(settings);
@@ -179,7 +181,9 @@ function registerSettingsHandlers(): void {
 
         // Save settings
         await settingsManager.updateSettings(settings);
-        console.log('IPC Handler: settings saved successfully');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('IPC Handler: settings saved successfully');
+        }
 
         // Re-initialize AI provider if API key changed
         if (settings.apiKeys) {

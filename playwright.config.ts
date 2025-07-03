@@ -28,7 +28,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
-          executablePath: require('electron').toString(),
+          executablePath: require('electron'),
           args: ['dist/main/main.js']
         }
       }

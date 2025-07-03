@@ -25,7 +25,7 @@ export default defineConfig({
       use: {
         launchOptions: {
           args: [],
-          executablePath: require('electron').toString(),
+          executablePath: require('electron'),
         },
         contextOptions: {
           ignoreHTTPSErrors: true,
