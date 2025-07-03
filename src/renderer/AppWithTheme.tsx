@@ -3,31 +3,27 @@ import App from "./App";
 import { ThemeProvider, ThemeMode } from "./contexts/ThemeContext";
 import { useSettings } from "./hooks";
 
+// Helper function to resolve theme based on settings
+const resolveInitialTheme = (theme: string | undefined): ThemeMode => {
+  if (theme && theme !== "system") {
+    return theme as ThemeMode;
+  }
+  // Fall back to system preference
+  const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return isDarkMode ? "dark" : "light";
+};
+
 const AppWithTheme: React.FC = () => {
   const { settings, updateSettings } = useSettings();
   
   // Initialize theme only once on mount
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    if (settings?.appearance?.theme && settings.appearance.theme !== "system") {
-      return settings.appearance.theme;
-    }
-    // Fall back to system preference
-    const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    return isDarkMode ? "dark" : "light";
+    return resolveInitialTheme(settings?.appearance?.theme);
   });
 
   // Update theme when settings change
   useEffect(() => {
-    const theme = settings?.appearance?.theme || "system";
-    
-    if (theme === "system") {
-      // Use system preference
-      const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setThemeMode(isDarkMode ? "dark" : "light");
-    } else {
-      // Use explicit theme setting
-      setThemeMode(theme);
-    }
+    setThemeMode(resolveInitialTheme(settings?.appearance?.theme));
   }, [settings?.appearance?.theme]);
 
   // Handle theme change
