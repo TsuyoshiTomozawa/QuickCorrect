@@ -102,19 +102,25 @@ export class SettingsManager {
    */
   async updateSettings(updates: Partial<AppSettings>): Promise<void> {
     try {
-      // Encrypt API keys if provided
+      // Get current raw settings (with encrypted API keys)
+      const currentRawSettings = this.store.store;
+      
+      // Encrypt API keys if provided in updates
       if (updates.apiKeys) {
         updates.apiKeys = this.encryptApiKeys(updates.apiKeys);
       }
 
-      // Merge with existing settings
-      const currentSettings = await this.getSettings();
-      const newSettings = this.deepMerge(currentSettings, updates);
+      // Merge with existing raw settings
+      const newSettings = this.deepMerge(currentRawSettings, updates);
 
-      // Validate merged settings
-      this.validateSettings(newSettings);
+      // Validate merged settings (need to decrypt for validation)
+      const settingsForValidation = { ...newSettings };
+      if (settingsForValidation.apiKeys) {
+        settingsForValidation.apiKeys = this.decryptApiKeys(settingsForValidation.apiKeys);
+      }
+      this.validateSettings(settingsForValidation);
 
-      // Save settings
+      // Save settings (with encrypted API keys)
       this.store.store = newSettings;
     } catch (error) {
       console.error('Error updating settings:', error);
@@ -197,12 +203,13 @@ export class SettingsManager {
     if (isObject(target) && isObject(source)) {
       Object.keys(source).forEach(key => {
         if (isObject(source[key])) {
-          if (!(key in target)) {
+          if (!(key in target) || target[key] === null || target[key] === undefined) {
             output[key] = source[key];
           } else {
             output[key] = this.deepMerge(target[key], source[key]);
           }
         } else {
+          // Always use source value if it exists (even if it's null/undefined)
           output[key] = source[key];
         }
       });
@@ -381,6 +388,15 @@ export class SettingsManager {
         properties: {
           saveHistory: { type: 'boolean' },
           analyticsEnabled: { type: 'boolean' }
+        }
+      },
+      appearance: {
+        type: 'object',
+        properties: {
+          theme: {
+            type: 'string',
+            enum: ['light', 'dark', 'system']
+          }
         }
       }
     };

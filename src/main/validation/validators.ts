@@ -157,6 +157,20 @@ export function validateSettings(settings: any): ValidationResult {
     }
   }
 
+  // Validate appearance settings if provided
+  if (settings.appearance) {
+    if (typeof settings.appearance !== 'object') {
+      errors.push('Appearance settings must be an object');
+    } else {
+      if ('theme' in settings.appearance) {
+        const validThemes = ['light', 'dark', 'system'];
+        if (!validThemes.includes(settings.appearance.theme)) {
+          errors.push(`Theme must be one of: ${validThemes.join(', ')}`);
+        }
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors

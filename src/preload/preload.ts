@@ -79,7 +79,9 @@ const electronAPI: ElectronAPI = {
   
   saveSettings: async (settings: Partial<AppSettings>): Promise<boolean> => {
     try {
+      console.log('Preload: saveSettings called with:', settings);
       const result = await ipcRenderer.invoke(IPC_CHANNELS.SAVE_SETTINGS, settings);
+      console.log('Preload: saveSettings result:', result);
       return result?.success || result === true;
     } catch (error) {
       console.error('Error saving settings:', error);

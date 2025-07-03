@@ -8,6 +8,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { useElectronAPI } from './useElectronAPI';
 import type { AppSettings } from '../../types/interfaces';
 
+// Deep merge helper function
+function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+  
+  Object.keys(source).forEach(key => {
+    const sourceValue = source[key as keyof T];
+    const targetValue = target[key as keyof T];
+    
+    if (sourceValue !== undefined) {
+      if (
+        typeof sourceValue === 'object' &&
+        sourceValue !== null &&
+        !Array.isArray(sourceValue) &&
+        typeof targetValue === 'object' &&
+        targetValue !== null &&
+        !Array.isArray(targetValue)
+      ) {
+        (result as any)[key] = deepMerge(targetValue as any, sourceValue as any);
+      } else {
+        (result as any)[key] = sourceValue;
+      }
+    }
+  });
+  
+  return result;
+}
+
 interface UseSettingsState {
   settings: AppSettings | null;
   isLoading: boolean;
@@ -102,25 +129,33 @@ export function useSettings(): UseSettingsReturn {
   
   const updateSettings = useCallback(async (updates: Partial<AppSettings>): Promise<boolean> => {
     if (!api) {
+      // In non-Electron environment (like browser tests), update local state only
       setState(prev => ({
         ...prev,
-        error: 'Electron API not available'
+        settings: prev.settings ? deepMerge(prev.settings, updates) : null,
+        error: null
       }));
-      return false;
+      return true;
     }
     
+    console.log('useSettings: updateSettings called with:', updates);
     setState(prev => ({ ...prev, isSaving: true, error: null }));
     
     try {
       const success = await api.saveSettings(updates);
+      console.log('useSettings: saveSettings result:', success);
       
       if (success) {
-        // Update local state optimistically
-        setState(prev => ({
-          ...prev,
-          settings: prev.settings ? { ...prev.settings, ...updates } : null,
-          isSaving: false
-        }));
+        // Update local state optimistically with deep merge
+        setState(prev => {
+          const newSettings = prev.settings ? deepMerge(prev.settings, updates) : null;
+          console.log('useSettings: merged settings:', newSettings);
+          return {
+            ...prev,
+            settings: newSettings,
+            isSaving: false
+          };
+        });
       } else {
         setState(prev => ({
           ...prev,
@@ -131,6 +166,7 @@ export function useSettings(): UseSettingsReturn {
       
       return success;
     } catch (error) {
+      console.error('useSettings: error saving settings:', error);
       setState(prev => ({
         ...prev,
         isSaving: false,

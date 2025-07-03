@@ -334,7 +334,7 @@ const App: React.FC = () => {
       <Header>
         <Title>QuickCorrect</Title>
         <div>
-          <HeaderButton onClick={handleSettingsToggle} aria-label="設定を開く">
+          <HeaderButton onClick={handleSettingsToggle} aria-label="Settings">
             ⚙️
           </HeaderButton>
           <HeaderButton onClick={handleHistoryToggle} aria-label="履歴を開く">
@@ -376,6 +376,7 @@ const App: React.FC = () => {
       <AnimatePresence>
         {showSettings && (
           <SidePanel
+            data-testid="settings-panel"
             initial={{ x: 300 }}
             animate={{ x: 0 }}
             exit={{ x: 300 }}
@@ -391,11 +392,18 @@ const App: React.FC = () => {
                 </SettingsLabel>
                 <SettingsSelect
                   id="themeSelect"
+                  data-testid="theme-selector"
                   value={settings?.appearance?.theme || "system"}
                   onChange={(e) => {
+                    const newTheme = e.target.value as "light" | "dark" | "system";
+                    console.log('Theme change:', { 
+                      currentTheme: settings?.appearance?.theme, 
+                      newTheme,
+                      value: e.target.value 
+                    });
                     updateSettings({
                       appearance: {
-                        theme: e.target.value as "light" | "dark" | "system",
+                        theme: newTheme,
                       },
                     });
                   }}
