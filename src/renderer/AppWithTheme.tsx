@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import App from "./App";
 import { ThemeProvider, ThemeMode } from "./contexts/ThemeContext";
 import { useSettings } from "./hooks";
@@ -6,17 +6,15 @@ import { useSettings } from "./hooks";
 const AppWithTheme: React.FC = () => {
   const { settings, updateSettings } = useSettings();
   
-  // Initialize theme based on settings or system preference
-  const getInitialTheme = (): ThemeMode => {
+  // Initialize theme only once on mount
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (settings?.appearance?.theme && settings.appearance.theme !== "system") {
       return settings.appearance.theme;
     }
     // Fall back to system preference
     const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
     return isDarkMode ? "dark" : "light";
-  };
-  
-  const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme);
+  });
 
   // Update theme when settings change
   useEffect(() => {
@@ -33,16 +31,16 @@ const AppWithTheme: React.FC = () => {
   }, [settings?.appearance?.theme]);
 
   // Handle theme change
-  const handleThemeChange = (mode: ThemeMode) => {
-    // Only update settings if not in system mode
-    if (settings?.appearance?.theme !== "system") {
+  const handleThemeChange = useCallback((mode: ThemeMode) => {
+    // Only update settings if not in system mode and the theme actually changed
+    if (settings?.appearance?.theme !== "system" && settings?.appearance?.theme !== mode) {
       updateSettings({
         appearance: {
           theme: mode,
         },
       });
     }
-  };
+  }, [settings?.appearance?.theme, updateSettings]);
 
   return (
     <ThemeProvider
