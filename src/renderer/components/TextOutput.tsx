@@ -21,7 +21,7 @@ const Container = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.border};
   overflow: hidden;
   flex: 1;
-  margin-left: 12px;
+  margin: 0 12px;
 `;
 
 const Header = styled.div`
@@ -86,7 +86,7 @@ const TextDisplay = styled.div`
   color: ${({ theme }) => theme.colors.text};
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'Inter', 'Noto Sans JP', inherit;
+  font-family: 'Inter', 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 `;
 
 const LoadingContainer = styled(motion.div)`

@@ -91,7 +91,7 @@ const TextArea = styled.textarea`
   line-height: 1.6;
   resize: none;
   transition: all 0.2s ease;
-  font-family: 'Inter', 'Noto Sans JP', inherit;
+  font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
 
