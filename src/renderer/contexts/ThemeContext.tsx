@@ -42,30 +42,30 @@ const lightTheme: Theme = {
   mode: "light",
   colors: {
     // Primary colors
-    background: "#F2F2F7",
+    background: "#F8F8F8",
     surface: "#FFFFFF",
-    surfaceHover: "#F5F5F5",
+    surfaceHover: "#F0F0F0",
     
     // Text colors
-    text: "#1C1C1E",
-    textSubtle: "#636366", // Improved from #8E8E93 for better contrast
+    text: "#333333",
+    textSubtle: "#888888",
     textInverse: "#FFFFFF",
     
     // Accent colors
-    accent: "#0051D5", // Darker blue for better contrast
-    accentHover: "#003DA5",
+    accent: "#333333",
+    accentHover: "#000000",
     
     // Status colors
-    success: "#147033", // Darker green for better contrast
-    warning: "#CC6400", // Darker orange for better contrast
-    error: "#CC2016", // Darker red for better contrast
+    success: "#147033",
+    warning: "#CC6400",
+    error: "#CC2016",
     
     // Border colors
-    border: "#E5E5EA",
-    borderSubtle: "#F2F2F7",
+    border: "#EAEAEA",
+    borderSubtle: "#F5F5F5",
     
     // Shadow colors
-    shadow: "rgba(0, 0, 0, 0.1)",
+    shadow: "rgba(0, 0, 0, 0.08)",
   },
 };
 
@@ -73,18 +73,18 @@ const darkTheme: Theme = {
   mode: "dark",
   colors: {
     // Primary colors
-    background: "#1A1A1A",
-    surface: "#2C2C2E",
-    surfaceHover: "#3A3A3C",
+    background: "#181818",
+    surface: "#222222",
+    surfaceHover: "#2A2A2A",
     
     // Text colors
-    text: "#F2F2F7",
-    textSubtle: "#AEAEB2", // Improved from #8E8E93 for better contrast
-    textInverse: "#1C1C1E",
+    text: "#E5E5E5",
+    textSubtle: "#999999",
+    textInverse: "#181818",
     
     // Accent colors
-    accent: "#0A84FF",
-    accentHover: "#409CFF",
+    accent: "#E5E5E5",
+    accentHover: "#FFFFFF",
     
     // Status colors
     success: "#32D74B",
@@ -92,11 +92,11 @@ const darkTheme: Theme = {
     error: "#FF453A",
     
     // Border colors
-    border: "#48484A",
-    borderSubtle: "#3A3A3C",
+    border: "#333333",
+    borderSubtle: "#2A2A2A",
     
     // Shadow colors
-    shadow: "rgba(0, 0, 0, 0.3)",
+    shadow: "rgba(0, 0, 0, 0.5)",
   },
 };
 
