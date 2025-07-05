@@ -22,16 +22,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'electron',
-      use: {
-        ...devices['Desktop Chrome'],
-        launchOptions: {
-          executablePath: require('electron'),
-          args: ['dist/main/main.js']
-        }
-      }
     }
   ],
 
