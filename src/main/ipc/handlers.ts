@@ -32,6 +32,28 @@ let settingsManager: SettingsManager;
 let aiProvider: any;
 
 /**
+ * Sanitize sensitive data from settings for logging
+ */
+function sanitizeSettingsForLogging(settings: any): any {
+  if (!settings) return settings;
+  
+  const sanitized = { ...settings };
+  const sensitiveKeys = ['openAIApiKey', 'googleGeminiApiKey', 'anthropicApiKey', 'apiKey', 'api_key'];
+  
+  for (const key of sensitiveKeys) {
+    if (sanitized[key]) {
+      // Show only last 4 characters of the key
+      const value = String(sanitized[key]);
+      sanitized[key] = value.length > 4 
+        ? `***${value.slice(-4)}` 
+        : '****';
+    }
+  }
+  
+  return sanitized;
+}
+
+/**
  * Initialize IPC handlers and backend services
  */
 export async function initializeIPCHandlers(): Promise<void> {
@@ -170,7 +192,7 @@ function registerSettingsHandlers(): void {
     async (_event, settings: Partial<AppSettings>) => {
       try {
         if (process.env.NODE_ENV === 'development') {
-          console.log('IPC Handler: save-settings called with:', JSON.stringify(settings, null, 2));
+          console.log('IPC Handler: save-settings called with:', JSON.stringify(sanitizeSettingsForLogging(settings), null, 2));
         }
         
         // Validate settings
