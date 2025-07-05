@@ -21,6 +21,7 @@ import {
   validateCorrectionRequest,
   validateSettings,
 } from "../validation/validators";
+import { SENSITIVE_KEYS } from "../../constants/security";
 import * as path from "path";
 
 // Load environment variables
@@ -30,6 +31,52 @@ dotenv.config();
 let historyManager: HistoryManager;
 let settingsManager: SettingsManager;
 let aiProvider: any;
+
+/**
+ * Sanitize sensitive data from settings for logging
+ * Recursively handles nested objects
+ */
+function sanitizeSettingsForLogging(settings: any): any {
+  if (!settings) return settings;
+  
+  // Handle arrays
+  if (Array.isArray(settings)) {
+    return settings.map(item => sanitizeSettingsForLogging(item));
+  }
+  
+  // Handle objects
+  if (typeof settings === 'object') {
+    const sanitized: any = {};
+    
+    for (const [key, value] of Object.entries(settings)) {
+      // Check if the key is sensitive
+      if (SENSITIVE_KEYS.includes(key as any)) {
+        if (typeof value === 'string') {
+          // Mask string values
+          sanitized[key] = value.length > 4 
+            ? `***${value.slice(-4)}` 
+            : '****';
+        } else if (value) {
+          // For non-string sensitive values, just mask them
+          sanitized[key] = '****';
+        } else {
+          sanitized[key] = value;
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        // Recursively sanitize nested objects
+        sanitized[key] = sanitizeSettingsForLogging(value);
+      } else {
+        // Keep non-sensitive values as-is
+        sanitized[key] = value;
+      }
+    }
+    
+    return sanitized;
+  }
+  
+  // Return primitives as-is
+  return settings;
+}
 
 /**
  * Initialize IPC handlers and backend services
@@ -170,7 +217,7 @@ function registerSettingsHandlers(): void {
     async (_event, settings: Partial<AppSettings>) => {
       try {
         if (process.env.NODE_ENV === 'development') {
-          console.log('IPC Handler: save-settings called with:', JSON.stringify(settings, null, 2));
+          console.log('IPC Handler: save-settings called with:', JSON.stringify(sanitizeSettingsForLogging(settings), null, 2));
         }
         
         // Validate settings
