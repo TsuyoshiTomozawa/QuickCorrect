@@ -17,47 +17,50 @@ const Container = styled.div`
   flex-direction: column;
   height: 100%;
   background: ${({ theme }) => theme.colors.surface};
-  border-radius: 8px;
-  margin: 8px;
-  box-shadow: 0 2px 10px ${({ theme }) => theme.colors.shadow};
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
   overflow: hidden;
+  flex: 1;
+  margin-left: 12px;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 20px 24px;
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Title = styled.h3`
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.colors.textSubtle};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 `;
 
 const StatusBadge = styled.div<{ $type: 'success' | 'loading' | 'error' | 'idle' }>`
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: 6px 12px;
+  border-radius: 16px;
   font-size: 12px;
   font-weight: 500;
   background: ${props => {
-    const opacity = props.theme.mode === 'dark' ? '33' : '1A'; // 20% and 10% in hex
-    switch (props.$type) {
-      case 'success': return `${props.theme.colors.success}${opacity}`;
-      case 'loading': return `${props.theme.colors.accent}${opacity}`;
-      case 'error': return `${props.theme.colors.error}${opacity}`;
-      default: return props.theme.colors.borderSubtle;
-    }
-  }};
-  color: ${props => {
     switch (props.$type) {
       case 'success': return props.theme.colors.success;
       case 'loading': return props.theme.colors.accent;
       case 'error': return props.theme.colors.error;
+      default: return props.theme.colors.border;
+    }
+  }};
+  color: ${props => {
+    switch (props.$type) {
+      case 'success': 
+      case 'loading': 
+      case 'error': 
+        return props.theme.colors.textInverse;
       default: return props.theme.colors.textSubtle;
     }
   }};
@@ -72,17 +75,18 @@ const ContentWrapper = styled.div`
 
 const ResultArea = styled.div`
   flex: 1;
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
   position: relative;
 `;
 
 const TextDisplay = styled.div`
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.8;
   color: ${({ theme }) => theme.colors.text};
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: 'Inter', 'Noto Sans JP', inherit;
 `;
 
 const LoadingContainer = styled(motion.div)`
@@ -95,10 +99,10 @@ const LoadingContainer = styled(motion.div)`
 `;
 
 const LoadingSpinner = styled(motion.div)`
-  width: 40px;
-  height: 40px;
-  border: 3px solid ${({ theme }) => theme.colors.borderSubtle};
-  border-top: 3px solid ${({ theme }) => theme.colors.accent};
+  width: 32px;
+  height: 32px;
+  border: 2px solid ${({ theme }) => theme.colors.border};
+  border-top: 2px solid ${({ theme }) => theme.colors.accent};
   border-radius: 50%;
 `;
 
@@ -114,11 +118,12 @@ const EmptyState = styled.div`
 `;
 
 const ErrorContainer = styled(motion.div)`
-  background: ${({ theme }) => `${theme.colors.error}${theme.mode === 'dark' ? '33' : '1A'}`};
+  background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.error};
-  padding: 16px;
-  border-radius: 6px;
+  padding: 16px 20px;
+  border-radius: 8px;
   margin: 20px;
+  border: 1px solid ${({ theme }) => theme.colors.error};
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -126,8 +131,8 @@ const ErrorContainer = styled(motion.div)`
 
 const MetaInfo = styled.div`
   display: flex;
-  gap: 20px;
-  padding: 12px 20px;
+  gap: 24px;
+  padding: 16px 24px;
   background: ${({ theme }) => theme.colors.surface};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   font-size: 12px;
@@ -142,20 +147,21 @@ const MetaItem = styled.div`
 
 const ActionBar = styled.div`
   display: flex;
-  gap: 8px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 20px 24px;
   background: ${({ theme }) => theme.colors.surface};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const ActionButton = styled(motion.button)`
   flex: 1;
-  padding: 10px 16px;
+  padding: 10px 20px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.surface};
+  background: transparent;
   color: ${({ theme }) => theme.colors.text};
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -165,11 +171,11 @@ const ActionButton = styled(motion.button)`
 
   &:hover {
     background: ${({ theme }) => theme.colors.surfaceHover};
-    border-color: ${({ theme }) => theme.colors.borderSubtle};
+    transform: translateY(-1px);
   }
 
   &:active {
-    background: ${({ theme }) => theme.colors.borderSubtle};
+    transform: translateY(0);
   }
 
   &:focus {

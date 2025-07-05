@@ -33,8 +33,9 @@ const AppContainer = styled.div`
   background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
-  transition: background 0.3s ease, color 0.3s ease;
+    'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  transition: background 0.2s ease, color 0.2s ease;
+  line-height: 1.6;
 `;
 
 const MainContent = styled.div`
@@ -47,36 +48,40 @@ const MainContent = styled.div`
 const TextPanelContainer = styled.div`
   flex: 1;
   display: flex;
-  gap: 1px;
-  background: ${({ theme }) => theme.colors.border};
+  gap: 0;
+  background: ${({ theme }) => theme.colors.background};
+  padding: 24px;
 `;
 
 const SidePanel = styled(motion.div)`
   position: absolute;
   top: 0;
   right: 0;
-  width: 300px;
+  width: 320px;
   height: 100%;
   background: ${({ theme }) => theme.colors.surface};
-  box-shadow: -2px 0 10px ${({ theme }) => theme.colors.shadow};
+  box-shadow: -2px 0 20px ${({ theme }) => theme.colors.shadow};
   z-index: 1000;
   color: ${({ theme }) => theme.colors.text};
+  border-left: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Header = styled.div`
-  height: 60px;
+  height: 64px;
   background: ${({ theme }) => theme.colors.surface};
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 24px;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const Title = styled.h1`
   margin: 0;
   font-size: 20px;
+  font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
+  letter-spacing: -0.02em;
 `;
 
 const HeaderButton = styled.button`
@@ -84,12 +89,14 @@ const HeaderButton = styled.button`
   border: none;
   font-size: 16px;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: background 0.2s ease;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: ${({ theme }) => theme.colors.textSubtle};
   
   &:hover {
     background: ${({ theme }) => theme.colors.surfaceHover};
+    color: ${({ theme }) => theme.colors.text};
   }
 
   &:focus {
@@ -103,67 +110,80 @@ const HeaderButton = styled.button`
 `;
 
 const StatusBar = styled.div`
-  height: 30px;
+  height: 32px;
   background: ${({ theme }) => theme.colors.surface};
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 24px;
   font-size: 12px;
   color: ${({ theme }) => theme.colors.textSubtle};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
+  font-weight: 500;
 `;
 
 const SettingsSection = styled.div`
-  margin-top: 20px;
+  margin-top: 24px;
 `;
 
 const SettingsLabel = styled.label`
   display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 13px;
   color: ${({ theme }) => theme.colors.text};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 `;
 
 const SettingsSelect = styled.select`
   width: 100%;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.surface};
+  background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
+    background: ${({ theme }) => theme.colors.surface};
   }
 `;
 
 const SettingsInput = styled.input`
   width: 100%;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.surface};
+  background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
+    background: ${({ theme }) => theme.colors.surface};
   }
 `;
 
 const CloseButton = styled.button`
-  margin-top: 20px;
-  padding: 8px 16px;
-  background-color: ${({ theme }) => theme.colors.textSubtle};
+  margin-top: 24px;
+  padding: 10px 20px;
+  background-color: ${({ theme }) => theme.colors.accent};
   color: ${({ theme }) => theme.colors.textInverse};
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:hover {
-    background-color: ${({ theme }) => theme.colors.text};
+    background-color: ${({ theme }) => theme.colors.accentHover};
+    transform: translateY(-1px);
   }
 `;
 
@@ -174,8 +194,11 @@ const PanelContent = styled.div`
 `;
 
 const PanelTitle = styled.h3`
-  margin: 0 0 20px 0;
+  margin: 0 0 24px 0;
+  font-size: 18px;
+  font-weight: 600;
   color: ${({ theme }) => theme.colors.text};
+  letter-spacing: -0.02em;
 `;
 
 const InputGroup = styled.div`
@@ -202,16 +225,18 @@ const CheckboxLabel = styled.label`
 
 const NumberInput = styled.input`
   width: 100%;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.surface};
+  background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.colors.accent};
-    box-shadow: ${({ theme }) => getFocusShadow(theme)};
+    background: ${({ theme }) => theme.colors.surface};
   }
 `;
 
